@@ -48,7 +48,7 @@ type Neo4j struct {
 	config *Config
 }
 
-func WithInstance(driver neo4j.DriverWithContext, config *Config) (database.Driver, error) {
+func WithInstance(ctx context.Context, driver neo4j.DriverWithContext, config *Config) (database.Driver, error) {
 	if config == nil {
 		return nil, ErrNilConfig
 	}
@@ -58,14 +58,14 @@ func WithInstance(driver neo4j.DriverWithContext, config *Config) (database.Driv
 		config: config,
 	}
 
-	if err := nDriver.ensureVersionConstraint(); err != nil {
+	if err := nDriver.ensureVersionConstraint(ctx); err != nil {
 		return nil, err
 	}
 
 	return nDriver, nil
 }
 
-func (n *Neo4j) Open(url string) (database.Driver, error) {
+func (n *Neo4j) Open(ctx context.Context, url string) (database.Driver, error) {
 	uri, err := neturl.Parse(url)
 	if err != nil {
 		return nil, err
@@ -99,27 +99,27 @@ func (n *Neo4j) Open(url string) (database.Driver, error) {
 	}
 
 	if err = func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		return driver.VerifyConnectivity(ctx)
 	}(); err != nil {
-		_ = driver.Close(context.Background())
+		_ = driver.Close(ctx)
 		return nil, err
 	}
 
-	return WithInstance(driver, &Config{
+	return WithInstance(ctx, driver, &Config{
 		MigrationsLabel:       DefaultMigrationsLabel,
 		MultiStatement:        multi,
 		MultiStatementMaxSize: multiStatementMaxSize,
 	})
 }
 
-func (n *Neo4j) Close() error {
-	return n.driver.Close(context.Background())
+func (n *Neo4j) Close(ctx context.Context) error {
+	return n.driver.Close(ctx)
 }
 
 // local locking in order to pass tests, Neo doesn't support database locking
-func (n *Neo4j) Lock() error {
+func (n *Neo4j) Lock(ctx context.Context) error {
 	if !atomic.CompareAndSwapUint32(&n.lock, 0, 1) {
 		return database.ErrLocked
 	}
@@ -127,15 +127,14 @@ func (n *Neo4j) Lock() error {
 	return nil
 }
 
-func (n *Neo4j) Unlock() error {
+func (n *Neo4j) Unlock(ctx context.Context) error {
 	if !atomic.CompareAndSwapUint32(&n.lock, 1, 0) {
 		return database.ErrNotLocked
 	}
 	return nil
 }
 
-func (n *Neo4j) Run(migration io.Reader) (err error) {
-	ctx := context.Background()
+func (n *Neo4j) Run(ctx context.Context, migration io.Reader) (err error) {
 	session := n.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer func() {
 		if cerr := session.Close(ctx); cerr != nil {
@@ -190,8 +189,7 @@ func (n *Neo4j) Run(migration io.Reader) (err error) {
 	return err
 }
 
-func (n *Neo4j) SetVersion(version int, dirty bool) (err error) {
-	ctx := context.Background()
+func (n *Neo4j) SetVersion(ctx context.Context, version int, dirty bool) (err error) {
 	session := n.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer func() {
 		if cerr := session.Close(ctx); cerr != nil {
@@ -214,8 +212,7 @@ type MigrationRecord struct {
 	Dirty   bool
 }
 
-func (n *Neo4j) Version() (version int, dirty bool, err error) {
-	ctx := context.Background()
+func (n *Neo4j) Version(ctx context.Context) (version int, dirty bool, err error) {
 	session := n.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
 	defer func() {
 		if cerr := session.Close(ctx); cerr != nil {
@@ -266,8 +263,7 @@ ORDER BY COALESCE(sm.ts, datetime({year: 0})) DESC, sm.version DESC LIMIT 1`,
 	return database.NilVersion, false, err
 }
 
-func (n *Neo4j) Drop() (err error) {
-	ctx := context.Background()
+func (n *Neo4j) Drop(ctx context.Context) (err error) {
 	session := n.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer func() {
 		if cerr := session.Close(ctx); cerr != nil {
@@ -282,8 +278,10 @@ func (n *Neo4j) Drop() (err error) {
 	return nil
 }
 
-func (n *Neo4j) ensureVersionConstraint() (err error) {
-	ctx := context.Background()
+func (n *Neo4j) ensureVersionConstraint(ctx context.Context) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	session := n.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer func() {
 		if cerr := session.Close(ctx); cerr != nil {

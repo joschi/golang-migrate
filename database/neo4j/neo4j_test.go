@@ -54,18 +54,19 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 
 func Test(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+		ctx := context.Background()
 		ip, port, err := c.Port(7687)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		n := &Neo4j{}
-		d, err := n.Open(neoConnectionString(ip, port))
+		d, err := n.Open(ctx, neoConnectionString(ip, port))
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(ctx); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -75,6 +76,7 @@ func Test(t *testing.T) {
 
 func TestMigrate(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+		ctx := context.Background()
 		ip, port, err := c.Port(7687)
 		if err != nil {
 			t.Fatal(err)
@@ -82,16 +84,16 @@ func TestMigrate(t *testing.T) {
 
 		n := &Neo4j{}
 		neoUrl := neoConnectionString(ip, port) + "/?x-multi-statement=true"
-		d, err := n.Open(neoUrl)
+		d, err := n.Open(ctx, neoUrl)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(ctx); err != nil {
 				t.Error(err)
 			}
 		}()
-		m, err := migrate.NewWithDatabaseInstance("file://./examples/migrations", "neo4j", d)
+		m, err := migrate.NewWithDatabaseInstance(ctx, "file://./examples/migrations", "neo4j", d)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,24 +103,25 @@ func TestMigrate(t *testing.T) {
 
 func TestMalformed(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+		ctx := context.Background()
 		ip, port, err := c.Port(7687)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		n := &Neo4j{}
-		d, err := n.Open(neoConnectionString(ip, port))
+		d, err := n.Open(ctx, neoConnectionString(ip, port))
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(ctx); err != nil {
 				t.Error(err)
 			}
 		}()
 
 		migration := bytes.NewReader([]byte("CREATE (a {qid: 1) RETURN a"))
-		if err := d.Run(migration); err == nil {
+		if err := d.Run(ctx, migration); err == nil {
 			t.Fatal("expected failure for malformed migration")
 		}
 	})
