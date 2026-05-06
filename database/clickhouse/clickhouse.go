@@ -12,9 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/multistmt"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
 var (
@@ -74,7 +76,9 @@ func (ch *ClickHouse) Open(ctx context.Context, dsn string) (database.Driver, er
 	}
 	q := migrate.FilterCustomQuery(purl)
 	q.Scheme = "tcp"
-	conn, err := sql.Open("clickhouse", q.String())
+	conn, err := otelsql.Open("clickhouse", q.String(),
+		otelsql.WithAttributes(semconv.DBSystemNameClickHouse),
+	)
 	if err != nil {
 		return nil, err
 	}

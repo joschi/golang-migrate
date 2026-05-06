@@ -11,9 +11,11 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/lib/pq"
 	sf "github.com/snowflakedb/gosnowflake"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
 func init() {
@@ -130,7 +132,9 @@ func (p *Snowflake) Open(ctx context.Context, url string) (database.Driver, erro
 		return nil, err
 	}
 
-	db, err := sql.Open("snowflake", dsn)
+	db, err := otelsql.Open("snowflake", dsn,
+		otelsql.WithAttributes(semconv.DBSystemNameKey.String("snowflake")),
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package googlecloudstorage
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -8,11 +9,12 @@ import (
 	"path"
 	"strings"
 
-	"context"
-
 	"cloud.google.com/go/storage"
 	"github.com/golang-migrate/migrate/v4/source"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 )
 
 func init() {
@@ -20,6 +22,7 @@ func init() {
 }
 
 type gcs struct {
+	client     *storage.Client
 	bucket     *storage.BucketHandle
 	prefix     string
 	migrations *source.Migrations
@@ -30,17 +33,18 @@ func (g *gcs) Open(ctx context.Context, folder string) (source.Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := storage.NewClient(ctx)
+	client, err := storage.NewClient(ctx, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
 	if err != nil {
 		return nil, err
 	}
 	driver := gcs{
+		client:     client,
 		bucket:     client.Bucket(u.Host),
 		prefix:     strings.Trim(u.Path, "/") + "/",
 		migrations: source.NewMigrations(),
 	}
-	err = driver.loadMigrations(ctx)
-	if err != nil {
+	if err = driver.loadMigrations(ctx); err != nil {
+		_ = client.Close()
 		return nil, err
 	}
 	return &driver, nil
@@ -69,7 +73,7 @@ func (g *gcs) loadMigrations(ctx context.Context) error {
 }
 
 func (g *gcs) Close(ctx context.Context) error {
-	return nil
+	return g.client.Close()
 }
 
 func (g *gcs) First(ctx context.Context) (uint, error) {
