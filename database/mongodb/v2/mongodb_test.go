@@ -95,12 +95,12 @@ func test(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -121,16 +121,16 @@ func testMigrate(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
-		m, err := migrate.NewWithDatabaseInstance("file://../examples/migrations", "", d)
+		m, err := migrate.NewWithDatabaseInstance(context.Background(), "file://../examples/migrations", "", d)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -147,17 +147,17 @@ func testWithAuth(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
 		createUserCMD := []byte(`[{"createUser":"deminem","pwd":"gogo","roles":[{"role":"readWrite","db":"testMigration"}]}]`)
-		err = d.Run(bytes.NewReader(createUserCMD))
+		err = d.Run(context.Background(), bytes.NewReader(createUserCMD))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,10 +173,10 @@ func testWithAuth(t *testing.T) {
 		for _, tcase := range testcases {
 			t.Run(tcase.name, func(t *testing.T) {
 				mc := &Mongo{}
-				d, err := mc.Open(fmt.Sprintf(tcase.connectUri, ip, port))
+				d, err := mc.Open(context.Background(), fmt.Sprintf(tcase.connectUri, ip, port))
 				if err == nil {
 					defer func() {
-						if err := d.Close(); err != nil {
+						if err := d.Close(context.Background()); err != nil {
 							t.Error(err)
 						}
 					}()
@@ -202,12 +202,12 @@ func testLockWorks(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -216,20 +216,20 @@ func testLockWorks(t *testing.T) {
 
 		mc := d.(*Mongo)
 
-		err = mc.Lock()
+		err = mc.Lock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = mc.Unlock()
+		err = mc.Unlock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = mc.Lock()
+		err = mc.Lock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = mc.Unlock()
+		err = mc.Unlock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -238,11 +238,11 @@ func testLockWorks(t *testing.T) {
 		//try to hit a lock conflict
 		mc.config.Locking.Enabled = true
 		mc.config.Locking.Timeout = 1
-		err = mc.Lock()
+		err = mc.Lock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = mc.Lock()
+		err = mc.Lock(context.Background())
 		if err == nil {
 			t.Fatal("should have failed, mongo should be locked already")
 		}
@@ -286,14 +286,14 @@ func TestTransaction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		d, err := WithInstance(client, &Config{
+		d, err := WithInstance(context.Background(), client, &Config{
 			DatabaseName: "testMigration",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -312,7 +312,7 @@ func TestTransaction(t *testing.T) {
 						"background": true
 					}]
 			}]`)
-		err = d.Run(bytes.NewReader(insertCMD))
+		err = d.Run(context.Background(), bytes.NewReader(insertCMD))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,7 +357,7 @@ func TestTransaction(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				d, err := WithInstance(client, &Config{
+				d, err := WithInstance(context.Background(), client, &Config{
 					DatabaseName:    "testMigration",
 					TransactionMode: true,
 				})
@@ -365,11 +365,11 @@ func TestTransaction(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer func() {
-					if err := d.Close(); err != nil {
+					if err := d.Close(context.Background()); err != nil {
 						t.Error(err)
 					}
 				}()
-				runErr := d.Run(bytes.NewReader(tcase.cmds))
+				runErr := d.Run(context.Background(), bytes.NewReader(tcase.cmds))
 				if runErr != nil {
 					if !tcase.isErrorExpected {
 						t.Fatal(runErr)
