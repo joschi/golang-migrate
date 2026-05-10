@@ -1,4 +1,4 @@
-package mongodb
+package v2
 
 import (
 	"bytes"

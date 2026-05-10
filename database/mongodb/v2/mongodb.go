@@ -1,4 +1,4 @@
-package mongodb
+package v2
 
 import (
 	"context"
@@ -21,8 +21,8 @@ import (
 
 func init() {
 	db := Mongo{}
-	database.Register("mongodb", &db)
-	database.Register("mongodb+srv", &db)
+	database.Register("mongodb/v2", &db)
+	database.Register("mongodb/v2+srv", &db)
 }
 
 var DefaultMigrationsCollection = "schema_migrations"

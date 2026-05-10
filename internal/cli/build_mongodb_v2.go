@@ -1,0 +1,7 @@
+//go:build mongodb_v2
+
+package cli
+
+import (
+	_ "github.com/golang-migrate/migrate/v4/database/mongodb/v2"
+)
