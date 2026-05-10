@@ -9,6 +9,8 @@ linters:
     - unconvert
     - unparam
   settings:
+    goconst:
+      ignore-tests: true
     misspell:
       locale: US
     revive:
