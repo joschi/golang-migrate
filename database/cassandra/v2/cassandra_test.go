@@ -1,4 +1,4 @@
-package cassandra
+package v2
 
 import (
 	"context"
