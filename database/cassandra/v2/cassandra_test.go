@@ -80,12 +80,12 @@ func test(t *testing.T) {
 		}
 		addr := fmt.Sprintf("cassandra://%v:%v/testks", ip, port)
 		p := &Cassandra{}
-		d, err := p.Open(addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -101,17 +101,17 @@ func testMigrate(t *testing.T) {
 		}
 		addr := fmt.Sprintf("cassandra://%v:%v/testks", ip, port)
 		p := &Cassandra{}
-		d, err := p.Open(addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
 
-		m, err := migrate.NewWithDatabaseInstance("file://./examples/migrations", "testks", d)
+		m, err := migrate.NewWithDatabaseInstance(context.Background(), "file://./examples/migrations", "testks", d)
 		if err != nil {
 			t.Fatal(err)
 		}

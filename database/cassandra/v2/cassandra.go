@@ -1,6 +1,7 @@
 package cassandra
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,10 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gocql/gocql"
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/multistmt"
-	"github.com/hashicorp/go-multierror"
 )
 
 func init() {
@@ -51,7 +51,7 @@ type Cassandra struct {
 	config *Config
 }
 
-func WithInstance(session *gocql.Session, config *Config) (database.Driver, error) {
+func WithInstance(ctx context.Context, session *gocql.Session, config *Config) (database.Driver, error) {
 	if config == nil {
 		return nil, ErrNilConfig
 	} else if len(config.KeyspaceName) == 0 {
@@ -75,14 +75,14 @@ func WithInstance(session *gocql.Session, config *Config) (database.Driver, erro
 		config:  config,
 	}
 
-	if err := c.ensureVersionTable(); err != nil {
+	if err := c.ensureVersionTable(ctx); err != nil {
 		return nil, err
 	}
 
 	return c, nil
 }
 
-func (c *Cassandra) Open(url string) (database.Driver, error) {
+func (c *Cassandra) Open(ctx context.Context, url string) (database.Driver, error) {
 	u, err := nurl.Parse(url)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (c *Cassandra) Open(url string) (database.Driver, error) {
 		}
 	}
 
-	return WithInstance(session, &Config{
+	return WithInstance(ctx, session, &Config{
 		KeyspaceName:          strings.TrimPrefix(u.Path, "/"),
 		MigrationsTable:       u.Query().Get("x-migrations-table"),
 		MultiStatementEnabled: u.Query().Get("x-multi-statement") == "true",
@@ -192,26 +192,26 @@ func (c *Cassandra) Open(url string) (database.Driver, error) {
 	})
 }
 
-func (c *Cassandra) Close() error {
+func (c *Cassandra) Close(_ context.Context) error {
 	c.session.Close()
 	return nil
 }
 
-func (c *Cassandra) Lock() error {
+func (c *Cassandra) Lock(_ context.Context) error {
 	if !c.isLocked.CompareAndSwap(false, true) {
 		return database.ErrLocked
 	}
 	return nil
 }
 
-func (c *Cassandra) Unlock() error {
+func (c *Cassandra) Unlock(_ context.Context) error {
 	if !c.isLocked.CompareAndSwap(true, false) {
 		return database.ErrNotLocked
 	}
 	return nil
 }
 
-func (c *Cassandra) Run(migration io.Reader) error {
+func (c *Cassandra) Run(_ context.Context, migration io.Reader) error {
 	if c.config.MultiStatementEnabled {
 		var err error
 		if e := multistmt.Parse(migration, multiStmtDelimiter, c.config.MultiStatementMaxSize, func(m []byte) bool {
@@ -242,7 +242,7 @@ func (c *Cassandra) Run(migration io.Reader) error {
 	return nil
 }
 
-func (c *Cassandra) SetVersion(version int, dirty bool) error {
+func (c *Cassandra) SetVersion(_ context.Context, version int, dirty bool) error {
 	// DELETE instead of TRUNCATE because AWS Keyspaces does not support it
 	// see: https://docs.aws.amazon.com/keyspaces/latest/devguide/cassandra-apis.html
 	squery := `SELECT version FROM "` + c.config.MigrationsTable + `"`
@@ -272,7 +272,7 @@ func (c *Cassandra) SetVersion(version int, dirty bool) error {
 }
 
 // Return current keyspace version
-func (c *Cassandra) Version() (version int, dirty bool, err error) {
+func (c *Cassandra) Version(_ context.Context) (version int, dirty bool, err error) {
 	query := `SELECT version, dirty FROM "` + c.config.MigrationsTable + `" LIMIT 1`
 	err = c.session.Query(query).Scan(&version, &dirty)
 	switch {
@@ -287,7 +287,7 @@ func (c *Cassandra) Version() (version int, dirty bool, err error) {
 	}
 }
 
-func (c *Cassandra) Drop() error {
+func (c *Cassandra) Drop(_ context.Context) error {
 	// select all tables in current schema
 	query := fmt.Sprintf(`SELECT table_name from system_schema.tables WHERE keyspace_name='%s'`, c.config.KeyspaceName)
 	iter := c.session.Query(query).Iter()
@@ -305,17 +305,17 @@ func (c *Cassandra) Drop() error {
 // ensureVersionTable checks if versions table exists and, if not, creates it.
 // Note that this function locks the database, which deviates from the usual
 // convention of "caller locks" in the Cassandra type.
-func (c *Cassandra) ensureVersionTable() (err error) {
-	if err = c.Lock(); err != nil {
+func (c *Cassandra) ensureVersionTable(ctx context.Context) (err error) {
+	if err = c.Lock(ctx); err != nil {
 		return err
 	}
 
 	defer func() {
-		if e := c.Unlock(); e != nil {
+		if e := c.Unlock(ctx); e != nil {
 			if err == nil {
 				err = e
 			} else {
-				err = multierror.Append(err, e)
+				err = errors.Join(err, e)
 			}
 		}
 	}()
@@ -324,7 +324,7 @@ func (c *Cassandra) ensureVersionTable() (err error) {
 	if err != nil {
 		return err
 	}
-	if _, _, err = c.Version(); err != nil {
+	if _, _, err = c.Version(ctx); err != nil {
 		return err
 	}
 	return nil
