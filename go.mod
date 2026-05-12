@@ -15,7 +15,7 @@ require (
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/fsouza/fake-gcs-server v1.17.0
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/gobuffalo/here v0.6.0
+	github.com/gobuffalo/here v0.6.7
 	github.com/gocql/gocql v1.5.2
 	github.com/google/go-github/v39 v39.2.0
 	github.com/jackc/pgconn v1.14.3
