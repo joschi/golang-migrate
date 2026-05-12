@@ -20,7 +20,7 @@ require (
 	github.com/google/go-github/v39 v39.2.0
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
-	github.com/jackc/pgx/v4 v4.18.2
+	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/ktrysmt/go-bitbucket v0.6.4
 	github.com/lib/pq v1.10.9
