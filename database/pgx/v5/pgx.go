@@ -132,6 +132,9 @@ func WithInstance(ctx context.Context, instance *sql.DB, config *Config) (databa
 	}
 
 	if err := px.ensureVersionTable(ctx); err != nil {
+		// Release the connection back to the pool so we don't leak
+		// it when WithInstance returns the error.
+		_ = conn.Close()
 		return nil, err
 	}
 

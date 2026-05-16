@@ -152,10 +152,12 @@ func WithInstance(ctx context.Context, instance *sql.DB, config *Config) (databa
 	}
 
 	if err := px.ensureLockTable(ctx); err != nil {
+		_ = conn.Close()
 		return nil, err
 	}
 
 	if err := px.ensureVersionTable(ctx); err != nil {
+		_ = conn.Close()
 		return nil, err
 	}
 
