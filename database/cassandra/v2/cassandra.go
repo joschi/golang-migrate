@@ -109,7 +109,7 @@ func (c *Cassandra) Open(ctx context.Context, url string) (database.Driver, erro
 	// Retrieve query string configuration
 	if len(u.Query().Get("consistency")) > 0 {
 		var consistency gocql.Consistency
-		consistency, err = parseConsistency(u.Query().Get("consistency"))
+		consistency, err = gocql.ParseConsistencyWrapper(u.Query().Get("consistency"))
 		if err != nil {
 			return nil, err
 		}
@@ -328,21 +328,4 @@ func (c *Cassandra) ensureVersionTable(ctx context.Context) (err error) {
 		return err
 	}
 	return nil
-}
-
-// ParseConsistency wraps gocql.ParseConsistency
-// to return an error instead of a panicking.
-func parseConsistency(consistencyStr string) (consistency gocql.Consistency, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			var ok bool
-			err, ok = r.(error)
-			if !ok {
-				err = fmt.Errorf("Failed to parse consistency \"%s\": %v", consistencyStr, r)
-			}
-		}
-	}()
-	consistency = gocql.ParseConsistency(consistencyStr)
-
-	return consistency, nil
 }
