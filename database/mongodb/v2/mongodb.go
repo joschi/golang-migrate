@@ -264,7 +264,10 @@ func (m *Mongo) Run(ctx context.Context, migration io.Reader) error {
 
 func (m *Mongo) executeCommandsWithTransaction(ctx context.Context, cmds []bson.D) error {
 	err := m.db.Client().UseSession(ctx, func(sessionContext context.Context) error {
-		sess := mongo.SessionFromContext(ctx)
+		sess := mongo.SessionFromContext(sessionContext)
+		if sess == nil {
+			return &database.Error{Err: "failed to get mongo session from context"}
+		}
 		if err := sess.StartTransaction(); err != nil {
 			return &database.Error{OrigErr: err, Err: "failed to start transaction"}
 		}
