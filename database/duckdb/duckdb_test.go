@@ -1,6 +1,7 @@
 package duckdb
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -18,9 +19,10 @@ func Test(t *testing.T) {
 	dir := t.TempDir()
 	dbFile := filepath.Join(dir, "test.duckdb")
 	addr := fmt.Sprintf("duckdb://%s", dbFile)
+	ctx := context.Background()
 
 	ddb := &DuckDB{}
-	d, err := ddb.Open(addr)
+	d, err := ddb.Open(ctx, addr)
 	if err != nil {
 		t.Fatalf("calling Open() on addr %s: %s", addr, err)
 	}
@@ -31,6 +33,7 @@ func Test(t *testing.T) {
 func TestMigrate(t *testing.T) {
 	dir := t.TempDir()
 	dbFile := filepath.Join(dir, "test.duckdb")
+	ctx := context.Background()
 
 	db, err := sql.Open("duckdb", dbFile)
 	if err != nil {
@@ -40,12 +43,13 @@ func TestMigrate(t *testing.T) {
 		assert.NoError(t, db.Close())
 	}()
 
-	driver, err := WithInstance(db, &Config{})
+	driver, err := WithInstance(ctx, db, &Config{})
 	if err != nil {
 		t.Fatalf("with instance: %s", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
+		ctx,
 		"file://./examples/migrations",
 		"main",
 		driver)
@@ -59,6 +63,7 @@ func TestMigrate(t *testing.T) {
 func TestMigrationTable(t *testing.T) {
 	dir := t.TempDir()
 	dbFile := filepath.Join(dir, "test.duckdb")
+	ctx := context.Background()
 
 	db, err := sql.Open("duckdb", dbFile)
 	if err != nil {
@@ -71,12 +76,13 @@ func TestMigrationTable(t *testing.T) {
 	config := &Config{
 		MigrationsTable: "custom_migrations",
 	}
-	driver, err := WithInstance(db, config)
+	driver, err := WithInstance(ctx, db, config)
 	if err != nil {
 		t.Fatalf("with instance: %s", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
+		ctx,
 		"file://./examples/migrations",
 		"main",
 		driver)
@@ -84,7 +90,7 @@ func TestMigrationTable(t *testing.T) {
 		t.Fatalf("new migrate: %s", err)
 	}
 
-	if err := m.Up(); err != nil {
+	if err := m.Up(ctx); err != nil {
 		t.Fatalf("up: %s", err)
 	}
 
@@ -97,9 +103,10 @@ func TestNoTxWrap(t *testing.T) {
 	dir := t.TempDir()
 	dbFile := filepath.Join(dir, "test.duckdb")
 	addr := fmt.Sprintf("duckdb://%s?x-no-tx-wrap=true", dbFile)
+	ctx := context.Background()
 
 	ddb := &DuckDB{}
-	d, err := ddb.Open(addr)
+	d, err := ddb.Open(ctx, addr)
 	if err != nil {
 		t.Fatalf("calling Open() on addr %s: %s", addr, err)
 	}
@@ -111,9 +118,10 @@ func TestNoTxWrapInvalidValue(t *testing.T) {
 	dir := t.TempDir()
 	dbFile := filepath.Join(dir, "test.duckdb")
 	addr := fmt.Sprintf("duckdb://%s?x-no-tx-wrap=definitely", dbFile)
+	ctx := context.Background()
 
 	ddb := &DuckDB{}
-	_, err := ddb.Open(addr)
+	_, err := ddb.Open(ctx, addr)
 	if assert.Error(t, err) {
 		assert.Contains(t, err.Error(), "x-no-tx-wrap")
 		assert.Contains(t, err.Error(), "invalid syntax")

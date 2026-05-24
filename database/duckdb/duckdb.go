@@ -1,6 +1,7 @@
 package duckdb
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -37,7 +38,7 @@ type DuckDB struct {
 	config   *Config
 }
 
-func (d *DuckDB) Open(url string) (database.Driver, error) {
+func (d *DuckDB) Open(ctx context.Context, url string) (database.Driver, error) {
 	purl, err := nurl.Parse(url)
 	if err != nil {
 		return nil, fmt.Errorf("parsing url: %w", err)
@@ -62,37 +63,37 @@ func (d *DuckDB) Open(url string) (database.Driver, error) {
 		}
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("pinging: %w", err)
 	}
 	cfg := &Config{
 		MigrationsTable: migrationsTable,
 		NoTxWrap:        noTxWrap,
 	}
-	return WithInstance(db, cfg)
+	return WithInstance(ctx, db, cfg)
 }
 
-func (d *DuckDB) Close() error {
+func (d *DuckDB) Close(ctx context.Context) error {
 	return d.db.Close()
 }
 
-func (d *DuckDB) Lock() error {
+func (d *DuckDB) Lock(ctx context.Context) error {
 	if !d.isLocked.CompareAndSwap(false, true) {
 		return database.ErrLocked
 	}
 	return nil
 }
 
-func (d *DuckDB) Unlock() error {
+func (d *DuckDB) Unlock(ctx context.Context) error {
 	if !d.isLocked.CompareAndSwap(true, false) {
 		return database.ErrNotLocked
 	}
 	return nil
 }
 
-func (d *DuckDB) Drop() error {
+func (d *DuckDB) Drop(ctx context.Context) error {
 	tablesQuery := `SELECT schema_name, table_name FROM duckdb_tables()`
-	tables, err := d.db.Query(tablesQuery)
+	tables, err := d.db.QueryContext(ctx, tablesQuery)
 	if err != nil {
 		return &database.Error{OrigErr: err, Query: []byte(tablesQuery)}
 	}
@@ -125,7 +126,7 @@ func (d *DuckDB) Drop() error {
 
 	for _, t := range tableNames {
 		dropQuery := fmt.Sprintf("DROP TABLE %s", t)
-		if _, err := d.db.Exec(dropQuery); err != nil {
+		if _, err := d.db.ExecContext(ctx, dropQuery); err != nil {
 			return &database.Error{OrigErr: err, Query: []byte(dropQuery)}
 		}
 	}
@@ -134,14 +135,14 @@ func (d *DuckDB) Drop() error {
 
 }
 
-func (d *DuckDB) SetVersion(version int, dirty bool) error {
-	tx, err := d.db.Begin()
+func (d *DuckDB) SetVersion(ctx context.Context, version int, dirty bool) error {
+	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return &database.Error{OrigErr: err, Err: "transaction start failed"}
 	}
 
 	query := "DELETE FROM " + d.config.MigrationsTable
-	if _, err := tx.Exec(query); err != nil {
+	if _, err := tx.ExecContext(ctx, query); err != nil {
 		return &database.Error{OrigErr: err, Query: []byte(query)}
 	}
 
@@ -153,7 +154,7 @@ func (d *DuckDB) SetVersion(version int, dirty bool) error {
 	// duckdb
 	if version >= 0 || (version == database.NilVersion && dirty) {
 		query := fmt.Sprintf(`INSERT INTO %s (version, dirty) VALUES (?, ?)`, d.config.MigrationsTable)
-		if _, err := tx.Exec(query, version, dirty); err != nil {
+		if _, err := tx.ExecContext(ctx, query, version, dirty); err != nil {
 			if errRollback := tx.Rollback(); errRollback != nil {
 				err = errors.Join(err, errRollback)
 			}
@@ -168,16 +169,16 @@ func (d *DuckDB) SetVersion(version int, dirty bool) error {
 	return nil
 }
 
-func (m *DuckDB) Version() (version int, dirty bool, err error) {
+func (m *DuckDB) Version(ctx context.Context) (version int, dirty bool, err error) {
 	query := "SELECT version, dirty FROM " + m.config.MigrationsTable + " LIMIT 1"
-	err = m.db.QueryRow(query).Scan(&version, &dirty)
+	err = m.db.QueryRowContext(ctx, query).Scan(&version, &dirty)
 	if err != nil {
 		return database.NilVersion, false, nil
 	}
 	return version, dirty, nil
 }
 
-func (d *DuckDB) Run(migration io.Reader) error {
+func (d *DuckDB) Run(ctx context.Context, migration io.Reader) error {
 	migr, err := io.ReadAll(migration)
 	if err != nil {
 		return fmt.Errorf("reading migration: %w", err)
@@ -185,17 +186,17 @@ func (d *DuckDB) Run(migration io.Reader) error {
 	query := string(migr[:])
 
 	if d.config.NoTxWrap {
-		if _, err := d.db.Exec(query); err != nil {
+		if _, err := d.db.ExecContext(ctx, query); err != nil {
 			return &database.Error{OrigErr: err, Query: []byte(query)}
 		}
 		return nil
 	}
 
-	tx, err := d.db.Begin()
+	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return &database.Error{OrigErr: err, Err: "transaction start failed"}
 	}
-	if _, err := tx.Exec(query); err != nil {
+	if _, err := tx.ExecContext(ctx, query); err != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
 			err = errors.Join(err, errRollback)
 		}
@@ -209,14 +210,14 @@ func (d *DuckDB) Run(migration io.Reader) error {
 
 // ensureVersionTable checks if versions table exists and, if not, creates it.
 // Note that this function locks the database, which deviates from the usual
-// convention of "caller locks" in the Sqlite type.
-func (d *DuckDB) ensureVersionTable() (err error) {
-	if err = d.Lock(); err != nil {
+// convention of "caller locks" in the DuckDB type.
+func (d *DuckDB) ensureVersionTable(ctx context.Context) (err error) {
+	if err = d.Lock(ctx); err != nil {
 		return err
 	}
 
 	defer func() {
-		if e := d.Unlock(); e != nil {
+		if e := d.Unlock(ctx); e != nil {
 			err = errors.Join(err, e)
 		}
 	}()
@@ -226,18 +227,18 @@ func (d *DuckDB) ensureVersionTable() (err error) {
 	CREATE UNIQUE INDEX IF NOT EXISTS version_unique ON %s (version);
 `, d.config.MigrationsTable, d.config.MigrationsTable)
 
-	if _, err := d.db.Exec(query); err != nil {
+	if _, err := d.db.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("creating version table via '%s': %w", query, err)
 	}
 	return nil
 }
 
-func WithInstance(instance *sql.DB, config *Config) (database.Driver, error) {
+func WithInstance(ctx context.Context, instance *sql.DB, config *Config) (database.Driver, error) {
 	if config == nil {
 		return nil, ErrNilConfig
 	}
 
-	if err := instance.Ping(); err != nil {
+	if err := instance.PingContext(ctx); err != nil {
 		return nil, err
 	}
 
@@ -249,7 +250,7 @@ func WithInstance(instance *sql.DB, config *Config) (database.Driver, error) {
 		db:     instance,
 		config: config,
 	}
-	if err := mx.ensureVersionTable(); err != nil {
+	if err := mx.ensureVersionTable(ctx); err != nil {
 		return nil, err
 	}
 	return mx, nil
