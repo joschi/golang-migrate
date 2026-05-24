@@ -1,4 +1,4 @@
-package mongodb
+package v2
 
 import (
 	"bytes"
@@ -15,9 +15,9 @@ import (
 
 	"github.com/dhui/dktest"
 	"github.com/golang-migrate/migrate/v4"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	dt "github.com/golang-migrate/migrate/v4/database/testing"
 	"github.com/golang-migrate/migrate/v4/dktesting"
@@ -48,7 +48,7 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 		return false
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoConnectionString(ip, port)))
+	client, err := mongo.Connect(options.Client().ApplyURI(mongoConnectionString(ip, port)))
 	if err != nil {
 		return false
 	}
@@ -88,7 +88,6 @@ func Test(t *testing.T) {
 
 func test(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ctx := context.Background()
 		ip, port, err := c.FirstPort()
 		if err != nil {
 			t.Fatal(err)
@@ -96,12 +95,12 @@ func test(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(ctx, addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(ctx); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -115,7 +114,6 @@ func test(t *testing.T) {
 
 func testMigrate(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ctx := context.Background()
 		ip, port, err := c.FirstPort()
 		if err != nil {
 			t.Fatal(err)
@@ -123,16 +121,16 @@ func testMigrate(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(ctx, addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(ctx); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
-		m, err := migrate.NewWithDatabaseInstance(ctx, "file://./examples/migrations", "", d)
+		m, err := migrate.NewWithDatabaseInstance(context.Background(), "file://../examples/migrations", "", d)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -142,7 +140,6 @@ func testMigrate(t *testing.T) {
 
 func testWithAuth(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ctx := context.Background()
 		ip, port, err := c.FirstPort()
 		if err != nil {
 			t.Fatal(err)
@@ -150,17 +147,17 @@ func testWithAuth(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(ctx, addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(ctx); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
 		createUserCMD := []byte(`[{"createUser":"deminem","pwd":"gogo","roles":[{"role":"readWrite","db":"testMigration"}]}]`)
-		err = d.Run(ctx, bytes.NewReader(createUserCMD))
+		err = d.Run(context.Background(), bytes.NewReader(createUserCMD))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -176,10 +173,10 @@ func testWithAuth(t *testing.T) {
 		for _, tcase := range testcases {
 			t.Run(tcase.name, func(t *testing.T) {
 				mc := &Mongo{}
-				d, err := mc.Open(ctx, fmt.Sprintf(tcase.connectUri, ip, port))
+				d, err := mc.Open(context.Background(), fmt.Sprintf(tcase.connectUri, ip, port))
 				if err == nil {
 					defer func() {
-						if err := d.Close(ctx); err != nil {
+						if err := d.Close(context.Background()); err != nil {
 							t.Error(err)
 						}
 					}()
@@ -198,7 +195,6 @@ func testWithAuth(t *testing.T) {
 
 func testLockWorks(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ctx := context.Background()
 		ip, port, err := c.FirstPort()
 		if err != nil {
 			t.Fatal(err)
@@ -206,12 +202,12 @@ func testLockWorks(t *testing.T) {
 
 		addr := mongoConnectionString(ip, port)
 		p := &Mongo{}
-		d, err := p.Open(ctx, addr)
+		d, err := p.Open(context.Background(), addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(ctx); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -220,20 +216,20 @@ func testLockWorks(t *testing.T) {
 
 		mc := d.(*Mongo)
 
-		err = mc.Lock(ctx)
+		err = mc.Lock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = mc.Unlock(ctx)
+		err = mc.Unlock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = mc.Lock(ctx)
+		err = mc.Lock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = mc.Unlock(ctx)
+		err = mc.Unlock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,11 +238,11 @@ func testLockWorks(t *testing.T) {
 		//try to hit a lock conflict
 		mc.config.Locking.Enabled = true
 		mc.config.Locking.Timeout = 1
-		err = mc.Lock(ctx)
+		err = mc.Lock(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = mc.Lock(ctx)
+		err = mc.Lock(context.Background())
 		if err == nil {
 			t.Fatal("should have failed, mongo should be locked already")
 		}
@@ -268,13 +264,12 @@ func TestTransaction(t *testing.T) {
 	})
 
 	dktesting.ParallelTest(t, transactionSpecs, func(t *testing.T, c dktest.ContainerInfo) {
-		ctx := context.Background()
 		ip, port, err := c.FirstPort()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mongoConnectionString(ip, port)))
+		client, err := mongo.Connect(options.Client().ApplyURI(mongoConnectionString(ip, port)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -291,14 +286,14 @@ func TestTransaction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		d, err := WithInstance(ctx, client, &Config{
+		d, err := WithInstance(context.Background(), client, &Config{
 			DatabaseName: "testMigration",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(ctx); err != nil {
+			if err := d.Close(context.Background()); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -317,7 +312,7 @@ func TestTransaction(t *testing.T) {
 						"background": true
 					}]
 			}]`)
-		err = d.Run(ctx, bytes.NewReader(insertCMD))
+		err = d.Run(context.Background(), bytes.NewReader(insertCMD))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -354,7 +349,7 @@ func TestTransaction(t *testing.T) {
 		}
 		for _, tcase := range testcases {
 			t.Run(tcase.name, func(t *testing.T) {
-				client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mongoConnectionString(ip, port)))
+				client, err := mongo.Connect(options.Client().ApplyURI(mongoConnectionString(ip, port)))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -362,7 +357,7 @@ func TestTransaction(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				d, err := WithInstance(ctx, client, &Config{
+				d, err := WithInstance(context.Background(), client, &Config{
 					DatabaseName:    "testMigration",
 					TransactionMode: true,
 				})
@@ -370,11 +365,11 @@ func TestTransaction(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer func() {
-					if err := d.Close(ctx); err != nil {
+					if err := d.Close(context.Background()); err != nil {
 						t.Error(err)
 					}
 				}()
-				runErr := d.Run(ctx, bytes.NewReader(tcase.cmds))
+				runErr := d.Run(context.Background(), bytes.NewReader(tcase.cmds))
 				if runErr != nil {
 					if !tcase.isErrorExpected {
 						t.Fatal(runErr)
