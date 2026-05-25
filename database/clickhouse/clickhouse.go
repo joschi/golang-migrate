@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
@@ -171,7 +172,7 @@ func (ch *ClickHouse) Version(ctx context.Context) (int, bool, error) {
 	var (
 		version int
 		dirty   uint8
-		query   = "SELECT version, dirty FROM `" + ch.config.MigrationsTable + "` ORDER BY sequence DESC LIMIT 1"
+		query   = "SELECT version, dirty FROM " + quoteIdentifier(ch.config.MigrationsTable) + " ORDER BY sequence DESC LIMIT 1"
 	)
 	if err := ch.conn.QueryRowContext(ctx, query).Scan(&version, &dirty); err != nil {
 		if err == sql.ErrNoRows {
@@ -196,7 +197,7 @@ func (ch *ClickHouse) SetVersion(ctx context.Context, version int, dirty bool) e
 		return err
 	}
 
-	query := "INSERT INTO " + ch.config.MigrationsTable + " (version, dirty, sequence) VALUES (?, ?, ?)"
+	query := "INSERT INTO " + quoteIdentifier(ch.config.MigrationsTable) + " (version, dirty, sequence) VALUES (?, ?, ?)"
 	if _, err := tx.ExecContext(ctx, query, version, bool(dirty), time.Now().UnixNano()); err != nil {
 		return &database.Error{OrigErr: err, Query: []byte(query)}
 	}
@@ -234,18 +235,18 @@ func (ch *ClickHouse) ensureVersionTable(ctx context.Context) (err error) {
 	// if not, create the empty migration table
 	if len(ch.config.ClusterName) > 0 {
 		query = fmt.Sprintf(`
-			CREATE TABLE %s ON CLUSTER %s (
+			CREATE TABLE %s.%s ON CLUSTER %s (
 				version    Int64,
 				dirty      UInt8,
 				sequence   UInt64
-			) Engine=%s`, ch.config.MigrationsTable, ch.config.ClusterName, ch.config.MigrationsTableEngine)
+			) Engine=%s`, quoteIdentifier(ch.config.DatabaseName), quoteIdentifier(ch.config.MigrationsTable), quoteIdentifier(ch.config.ClusterName), ch.config.MigrationsTableEngine)
 	} else {
 		query = fmt.Sprintf(`
 			CREATE TABLE %s (
 				version    Int64,
 				dirty      UInt8,
 				sequence   UInt64
-			) Engine=%s`, ch.config.MigrationsTable, ch.config.MigrationsTableEngine)
+			) Engine=%s`, quoteIdentifier(ch.config.MigrationsTable), ch.config.MigrationsTableEngine)
 	}
 
 	if strings.HasSuffix(ch.config.MigrationsTableEngine, "Tree") {
