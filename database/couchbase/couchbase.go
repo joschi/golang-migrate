@@ -1,6 +1,7 @@
 package couchbase
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,7 +73,10 @@ type N1QLMigration struct {
 	Params []any  `json:"params,omitempty"`
 }
 
-func WithInstance(cluster *gocb.Cluster, config *Config) (database.Driver, error) {
+func WithInstance(ctx context.Context, cluster *gocb.Cluster, config *Config) (database.Driver, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if config == nil {
 		return nil, ErrNilConfig
 	}
@@ -96,7 +100,7 @@ func WithInstance(cluster *gocb.Cluster, config *Config) (database.Driver, error
 	}
 
 	bucket := cluster.Bucket(config.BucketName)
-	if err := bucket.WaitUntilReady(startupWaitTimeout, nil); err != nil {
+	if err := bucket.WaitUntilReady(startupWaitTimeout, &gocb.WaitUntilReadyOptions{Context: ctx}); err != nil {
 		return nil, fmt.Errorf("bucket not ready: %w", err)
 	}
 
@@ -107,17 +111,21 @@ func WithInstance(cluster *gocb.Cluster, config *Config) (database.Driver, error
 		config:  config,
 	}
 
-	if err := cb.ensureCollections(); err != nil {
+	if err := cb.ensureCollections(ctx); err != nil {
 		return nil, err
 	}
-	if err := cb.ensureVersionDoc(); err != nil {
+	if err := cb.ensureVersionDoc(ctx); err != nil {
 		return nil, err
 	}
 
 	return cb, nil
 }
 
-func (cb *Couchbase) Open(dsn string) (database.Driver, error) {
+func (cb *Couchbase) Open(ctx context.Context, dsn string) (database.Driver, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	u, err := url.Parse(dsn)
 	if err != nil {
 		return nil, err
@@ -182,11 +190,11 @@ func (cb *Couchbase) Open(dsn string) (database.Driver, error) {
 		return nil, err
 	}
 
-	if err := cluster.WaitUntilReady(startupWaitTimeout, nil); err != nil {
+	if err := cluster.WaitUntilReady(startupWaitTimeout, &gocb.WaitUntilReadyOptions{Context: ctx}); err != nil {
 		return nil, fmt.Errorf("cluster not ready: %w", err)
 	}
 
-	return WithInstance(cluster, &Config{
+	return WithInstance(ctx, cluster, &Config{
 		BucketName:           bucketName,
 		ScopeName:            scopeName,
 		MigrationsCollection: migrationsCollection,
@@ -199,12 +207,18 @@ func (cb *Couchbase) Open(dsn string) (database.Driver, error) {
 	})
 }
 
-func (cb *Couchbase) Close() error {
+func (cb *Couchbase) Close(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return cb.cluster.Close(nil)
 }
 
-func (cb *Couchbase) Lock() error {
+func (cb *Couchbase) Lock(ctx context.Context) error {
 	return database.CasRestoreOnErr(&cb.isLocked, false, true, database.ErrLocked, func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !cb.config.Locking.Enabled {
 			return nil
 		}
@@ -222,6 +236,7 @@ func (cb *Couchbase) Lock() error {
 				"pid":       fmt.Sprintf("%d", time.Now().UnixNano()),
 			}, &gocb.InsertOptions{
 				Timeout: contextWaitTimeout,
+				Context: ctx,
 			})
 			if err == nil {
 				return nil
@@ -233,7 +248,15 @@ func (cb *Couchbase) Lock() error {
 					return database.ErrLocked
 				}
 
-				time.Sleep(interval)
+				timer := time.NewTimer(interval)
+				select {
+				case <-ctx.Done():
+					if !timer.Stop() {
+						<-timer.C
+					}
+					return ctx.Err()
+				case <-timer.C:
+				}
 				// Exponential backoff
 				interval = min(interval*2, maxInterval)
 				continue
@@ -245,8 +268,11 @@ func (cb *Couchbase) Lock() error {
 	})
 }
 
-func (cb *Couchbase) Unlock() error {
+func (cb *Couchbase) Unlock(ctx context.Context) error {
 	return database.CasRestoreOnErr(&cb.isLocked, true, false, database.ErrNotLocked, func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !cb.config.Locking.Enabled {
 			return nil
 		}
@@ -254,6 +280,7 @@ func (cb *Couchbase) Unlock() error {
 		col := cb.scope.Collection(cb.config.Locking.CollectionName)
 		_, err := col.Remove(lockDocID, &gocb.RemoveOptions{
 			Timeout: contextWaitTimeout,
+			Context: ctx,
 		})
 		if err != nil && !errors.Is(err, gocb.ErrDocumentNotFound) {
 			return err
@@ -265,7 +292,11 @@ func (cb *Couchbase) Unlock() error {
 // Run executes a migration. Migrations are JSON arrays of N1QL statements:
 //
 //	[{"query": "CREATE INDEX ..."},{"query": "INSERT INTO ...","params": [1, "val"]}]
-func (cb *Couchbase) Run(migration io.Reader) error {
+func (cb *Couchbase) Run(ctx context.Context, migration io.Reader) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	data, err := io.ReadAll(migration)
 	if err != nil {
 		return err
@@ -283,6 +314,7 @@ func (cb *Couchbase) Run(migration io.Reader) error {
 
 		opts := &gocb.QueryOptions{
 			Timeout: 60 * time.Second,
+			Context: ctx,
 		}
 		if len(stmt.Params) > 0 {
 			opts.PositionalParameters = stmt.Params
@@ -301,7 +333,11 @@ func (cb *Couchbase) Run(migration io.Reader) error {
 	return nil
 }
 
-func (cb *Couchbase) SetVersion(version int, dirty bool) error {
+func (cb *Couchbase) SetVersion(ctx context.Context, version int, dirty bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	col := cb.scope.Collection(cb.config.MigrationsCollection)
 
 	doc := versionInfo{
@@ -311,6 +347,7 @@ func (cb *Couchbase) SetVersion(version int, dirty bool) error {
 
 	_, err := col.Upsert(versionDocID, doc, &gocb.UpsertOptions{
 		Timeout: contextWaitTimeout,
+		Context: ctx,
 	})
 	if err != nil {
 		return &database.Error{OrigErr: err, Err: "save version failed"}
@@ -318,11 +355,16 @@ func (cb *Couchbase) SetVersion(version int, dirty bool) error {
 	return nil
 }
 
-func (cb *Couchbase) Version() (version int, dirty bool, err error) {
+func (cb *Couchbase) Version(ctx context.Context) (version int, dirty bool, err error) {
+	if err := ctx.Err(); err != nil {
+		return 0, false, err
+	}
+
 	col := cb.scope.Collection(cb.config.MigrationsCollection)
 
 	result, err := col.Get(versionDocID, &gocb.GetOptions{
 		Timeout: contextWaitTimeout,
+		Context: ctx,
 	})
 	if err != nil {
 		if errors.Is(err, gocb.ErrDocumentNotFound) {
@@ -339,11 +381,15 @@ func (cb *Couchbase) Version() (version int, dirty bool, err error) {
 	return info.Version, info.Dirty, nil
 }
 
-func (cb *Couchbase) Drop() error {
+func (cb *Couchbase) Drop(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	mgr := cb.bucket.Collections()
 
 	// Drop all collections in the configured scope (except system collections)
-	scopes, err := mgr.GetAllScopes(nil)
+	scopes, err := mgr.GetAllScopes(&gocb.GetAllScopesOptions{Context: ctx})
 	if err != nil {
 		return &database.Error{OrigErr: err, Err: "failed to list scopes"}
 	}
@@ -357,7 +403,7 @@ func (cb *Couchbase) Drop() error {
 				// Flush default collection documents via N1QL
 				_, qErr := cb.cluster.Query(
 					fmt.Sprintf("DELETE FROM `%s`.`%s`.`%s`", cb.config.BucketName, cb.config.ScopeName, col.Name),
-					nil,
+					&gocb.QueryOptions{Context: ctx},
 				)
 				if qErr != nil {
 					return &database.Error{OrigErr: qErr, Err: "failed to flush default collection"}
@@ -367,7 +413,7 @@ func (cb *Couchbase) Drop() error {
 			err := mgr.DropCollection(gocb.CollectionSpec{
 				Name:      col.Name,
 				ScopeName: cb.config.ScopeName,
-			}, nil)
+			}, &gocb.DropCollectionOptions{Context: ctx})
 			if err != nil {
 				return &database.Error{OrigErr: err, Err: fmt.Sprintf("failed to drop collection %s", col.Name)}
 			}
@@ -378,12 +424,16 @@ func (cb *Couchbase) Drop() error {
 }
 
 // ensureCollections creates the migrations and locking collections if they don't exist.
-func (cb *Couchbase) ensureCollections() error {
+func (cb *Couchbase) ensureCollections(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	mgr := cb.bucket.Collections()
 
 	// Ensure scope exists (skip _default)
 	if cb.config.ScopeName != DefaultScopeName {
-		if err := mgr.CreateScope(cb.config.ScopeName, nil); err != nil && !errors.Is(err, gocb.ErrScopeExists) {
+		if err := mgr.CreateScope(cb.config.ScopeName, &gocb.CreateScopeOptions{Context: ctx}); err != nil && !errors.Is(err, gocb.ErrScopeExists) {
 			return fmt.Errorf("create scope: %w", err)
 		}
 	}
@@ -392,7 +442,7 @@ func (cb *Couchbase) ensureCollections() error {
 	err := mgr.CreateCollection(gocb.CollectionSpec{
 		Name:      cb.config.MigrationsCollection,
 		ScopeName: cb.config.ScopeName,
-	}, nil)
+	}, &gocb.CreateCollectionOptions{Context: ctx})
 	if err != nil && !errors.Is(err, gocb.ErrCollectionExists) {
 		return fmt.Errorf("create migrations collection: %w", err)
 	}
@@ -402,14 +452,22 @@ func (cb *Couchbase) ensureCollections() error {
 		err = mgr.CreateCollection(gocb.CollectionSpec{
 			Name:      cb.config.Locking.CollectionName,
 			ScopeName: cb.config.ScopeName,
-		}, nil)
+		}, &gocb.CreateCollectionOptions{Context: ctx})
 		if err != nil && !errors.Is(err, gocb.ErrCollectionExists) {
 			return fmt.Errorf("create locking collection: %w", err)
 		}
 	}
 
 	// Wait for collections to be ready
-	time.Sleep(500 * time.Millisecond)
+	timer := time.NewTimer(500 * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		if !timer.Stop() {
+			<-timer.C
+		}
+		return ctx.Err()
+	case <-timer.C:
+	}
 
 	return nil
 }
@@ -417,18 +475,18 @@ func (cb *Couchbase) ensureCollections() error {
 // ensureVersionDoc verifies that the version document is accessible.
 // Note that this function locks the database, which deviates from the usual
 // convention of "caller locks" in the Couchbase type.
-func (cb *Couchbase) ensureVersionDoc() (err error) {
-	if err = cb.Lock(); err != nil {
+func (cb *Couchbase) ensureVersionDoc(ctx context.Context) (err error) {
+	if err = cb.Lock(ctx); err != nil {
 		return err
 	}
 
 	defer func() {
-		if e := cb.Unlock(); e != nil {
+		if e := cb.Unlock(ctx); e != nil {
 			err = errors.Join(err, e)
 		}
 	}()
 
-	if _, _, err = cb.Version(); err != nil {
+	if _, _, err = cb.Version(ctx); err != nil {
 		return err
 	}
 	return nil

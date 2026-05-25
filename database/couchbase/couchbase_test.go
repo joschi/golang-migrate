@@ -283,6 +283,7 @@ func Test(t *testing.T) {
 
 func test(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+		ctx := context.Background()
 		ip, kvPort, err := c.Port(11210)
 		if err != nil {
 			t.Fatal(err)
@@ -290,12 +291,12 @@ func test(t *testing.T) {
 
 		addr := couchbaseConnectionString(ip, kvPort)
 		p := &Couchbase{}
-		d, err := p.Open(addr)
+		d, err := p.Open(ctx, addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(ctx); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -307,6 +308,7 @@ func test(t *testing.T) {
 
 func testWithInstance(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+		ctx := context.Background()
 		ip, kvPort, err := c.Port(11210)
 		if err != nil {
 			t.Fatal(err)
@@ -323,7 +325,7 @@ func testWithInstance(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		d, err := WithInstance(cluster, &Config{
+		d, err := WithInstance(ctx, cluster, &Config{
 			BucketName: testBucket,
 			ScopeName:  "_default",
 		})
@@ -331,7 +333,7 @@ func testWithInstance(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(ctx); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -348,6 +350,7 @@ func testWithInstance(t *testing.T) {
 
 func testLockWorks(t *testing.T) {
 	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+		ctx := context.Background()
 		ip, kvPort, err := c.Port(11210)
 		if err != nil {
 			t.Fatal(err)
@@ -355,12 +358,12 @@ func testLockWorks(t *testing.T) {
 
 		addr := couchbaseConnectionString(ip, kvPort)
 		p := &Couchbase{}
-		d, err := p.Open(addr)
+		d, err := p.Open(ctx, addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
-			if err := d.Close(); err != nil {
+			if err := d.Close(ctx); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -371,27 +374,27 @@ func testLockWorks(t *testing.T) {
 		cb := d.(*Couchbase)
 
 		// Test lock/unlock cycle
-		if err := cb.Lock(); err != nil {
+		if err := cb.Lock(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if err := cb.Unlock(); err != nil {
+		if err := cb.Unlock(ctx); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := cb.Lock(); err != nil {
+		if err := cb.Lock(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if err := cb.Unlock(); err != nil {
+		if err := cb.Unlock(ctx); err != nil {
 			t.Fatal(err)
 		}
 
 		// Enable locking with a short timeout and test lock conflict
 		cb.config.Locking.Enabled = true
 		cb.config.Locking.Timeout = 1
-		if err := cb.Lock(); err != nil {
+		if err := cb.Lock(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if err := cb.Lock(); err == nil {
+		if err := cb.Lock(ctx); err == nil {
 			t.Fatal("should have failed, couchbase should be locked already")
 		}
 	})

@@ -42,14 +42,17 @@ migrate -source file://migrations -database "couchbases://Administrator:password
 
 ```go
 import (
+    "context"
     "github.com/couchbase/gocb/v2"
     "github.com/golang-migrate/migrate/v4"
     "github.com/golang-migrate/migrate/v4/database/couchbase"
     _ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
+ctx := context.Background()
+
 // Using a URL
-m, err := migrate.New("file://migrations", "couchbase://user:pass@localhost:11210/mybucket")
+m, err := migrate.New(ctx, "file://migrations", "couchbase://user:pass@localhost:11210/mybucket")
 
 // Using an existing cluster instance
 cluster, _ := gocb.Connect("couchbase://localhost", gocb.ClusterOptions{
@@ -59,7 +62,7 @@ cluster, _ := gocb.Connect("couchbase://localhost", gocb.ClusterOptions{
     },
 })
 
-driver, err := couchbase.WithInstance(cluster, &couchbase.Config{
+driver, err := couchbase.WithInstance(ctx, cluster, &couchbase.Config{
     BucketName: "mybucket",
     ScopeName:  "_default",
     Locking: couchbase.Locking{
@@ -68,7 +71,7 @@ driver, err := couchbase.WithInstance(cluster, &couchbase.Config{
     },
 })
 
-m, err := migrate.NewWithDatabaseInstance("file://migrations", "mybucket", driver)
+m, err := migrate.NewWithDatabaseInstance(ctx, "file://migrations", "mybucket", driver)
 m.Up()
 ```
 
