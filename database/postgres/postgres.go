@@ -143,6 +143,7 @@ func WithInstance(ctx context.Context, instance *sql.DB, config *Config) (databa
 
 	px, err := WithConnection(ctx, conn, config)
 	if err != nil {
+		_ = conn.Close()
 		return nil, err
 	}
 	px.db = instance
