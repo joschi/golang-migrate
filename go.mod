@@ -33,7 +33,7 @@ require (
 	github.com/markbates/pkger v0.15.1
 	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/microsoft/go-mssqldb v1.0.0
-	github.com/mutecomm/go-sqlcipher/v4 v4.4.0
+	github.com/mutecomm/go-sqlcipher/v4 v4.4.2
 	github.com/nakagami/firebirdsql v0.0.0-20190310045651-3c02a58cfed8
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/snowflakedb/gosnowflake v1.19.1
