@@ -54,7 +54,7 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/tools/godoc v0.1.0-deprecated
 	google.golang.org/api v0.247.0
-	modernc.org/ql v1.0.0
+	modernc.org/ql v1.5.1
 	modernc.org/sqlite v1.29.6
 )
 
@@ -167,7 +167,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
-	github.com/edsrzf/mmap-go v0.0.0-20170320065105-0bce6a688712 // indirect
+	github.com/edsrzf/mmap-go v1.2.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.7 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
@@ -241,18 +241,18 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/b v1.0.0 // indirect
-	modernc.org/db v1.0.0 // indirect
-	modernc.org/file v1.0.0 // indirect
-	modernc.org/fileutil v1.3.0 // indirect
-	modernc.org/golex v1.0.0 // indirect
-	modernc.org/internal v1.0.0 // indirect
+	modernc.org/b v1.1.0 // indirect
+	modernc.org/db v1.1.1 // indirect
+	modernc.org/file v1.0.20 // indirect
+	modernc.org/fileutil v1.4.0 // indirect
+	modernc.org/golex v1.1.0 // indirect
+	modernc.org/internal v1.1.10 // indirect
 	modernc.org/libc v1.41.0 // indirect
-	modernc.org/lldb v1.0.0 // indirect
-	modernc.org/mathutil v1.6.0 // indirect
+	modernc.org/lldb v1.0.8 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.7.2 // indirect
-	modernc.org/sortutil v1.1.0 // indirect
-	modernc.org/strutil v1.2.0 // indirect
+	modernc.org/sortutil v1.1.1 // indirect
+	modernc.org/strutil v1.2.1 // indirect
 	modernc.org/token v1.1.0 // indirect
-	modernc.org/zappy v1.0.0 // indirect
+	modernc.org/zappy v1.0.9 // indirect
 )
