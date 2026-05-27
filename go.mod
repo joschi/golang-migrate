@@ -20,7 +20,7 @@ require (
 	github.com/duckdb/duckdb-go/v2 v2.10503.0
 	github.com/fsouza/fake-gcs-server v1.17.0
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/gobuffalo/here v0.6.0
+	github.com/gobuffalo/here v0.6.7
 	github.com/gocql/gocql v1.7.0
 	github.com/google/go-github/v39 v39.2.0
 	github.com/hashicorp/go-multierror v1.1.1
