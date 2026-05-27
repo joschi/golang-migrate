@@ -19,7 +19,7 @@ require (
 	github.com/docker/go-connections v0.6.0
 	github.com/duckdb/duckdb-go/v2 v2.10503.0
 	github.com/fsouza/fake-gcs-server v1.17.0
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gobuffalo/here v0.6.0
 	github.com/gocql/gocql v1.5.2
 	github.com/google/go-github/v39 v39.2.0
@@ -63,6 +63,7 @@ require (
 	cloud.google.com/go/auth v0.16.4 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.3 // indirect
