@@ -8,7 +8,7 @@ require (
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
 	github.com/ClickHouse/clickhouse-go v1.4.3
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
-	github.com/XSAM/otelsql v0.41.0
+	github.com/XSAM/otelsql v0.42.0
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.18
 	github.com/cenkalti/backoff/v4 v4.3.0
