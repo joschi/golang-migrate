@@ -371,7 +371,7 @@ func (m *Mongo) Lock(ctx context.Context) error {
 
 		_, err = backoff.Retry(ctx, operation,
 			backoff.WithBackOff(b),
-			backoff.WithMaxElapsedTime(time.Duration(m.config.Locking.Timeout) * time.Second),
+			backoff.WithMaxElapsedTime(time.Duration(m.config.Locking.Timeout)*time.Second),
 		)
 		if err != nil {
 			return database.ErrLocked
