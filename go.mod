@@ -11,7 +11,6 @@ require (
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.18
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cockroachdb/cockroach-go/v2 v2.4.3
 	github.com/couchbase/gocb/v2 v2.12.3
 	github.com/dhui/dktest v0.4.6
@@ -23,8 +22,6 @@ require (
 	github.com/gobuffalo/here v0.6.7
 	github.com/gocql/gocql v1.7.0
 	github.com/google/go-github/v39 v39.2.0
-	github.com/google/go-github/v88 v88.0.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v4 v4.18.3
@@ -37,9 +34,7 @@ require (
 	github.com/mutecomm/go-sqlcipher/v4 v4.4.2
 	github.com/nakagami/firebirdsql v0.9.19
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
-	github.com/neo4j/neo4j-go-driver/v6 v6.1.0
 	github.com/snowflakedb/gosnowflake v1.19.1
-	github.com/snowflakedb/gosnowflake/v2 v2.0.2
 	github.com/stretchr/testify v1.11.1
 	github.com/xanzy/go-gitlab v0.15.0
 	go.mongodb.org/mongo-driver v1.17.9
@@ -107,11 +102,9 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/montanaflynn/stats v0.9.0 // indirect
 	github.com/nakagami/chacha20 v0.1.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
@@ -119,17 +112,14 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
-	github.com/zeebo/errs v1.4.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.42.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.29.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
 	golang.org/x/tools v0.44.0 // indirect
-	modernc.org/gc/v3 v3.1.2 // indirect
 )
 
 require (
@@ -164,9 +154,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.102.0
 	github.com/aws/smithy-go v1.25.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
-	github.com/cznic/mathutil v0.0.0-20180504122225-ca4c9f2c1369 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -176,11 +164,9 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.7 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
@@ -257,6 +243,5 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sortutil v1.2.1 // indirect
 	modernc.org/strutil v1.2.1 // indirect
-	modernc.org/token v1.1.0 // indirect
 	modernc.org/zappy v1.0.9 // indirect
 )
