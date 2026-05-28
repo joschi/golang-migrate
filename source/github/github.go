@@ -13,7 +13,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/golang-migrate/migrate/v4/source"
-	"github.com/google/go-github/v39/github"
+	"github.com/google/go-github/v88/github"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -67,8 +67,13 @@ func (g *Github) Open(ctx context.Context, url string) (source.Driver, error) {
 		client = base
 	}
 
+	ghClient, err := github.NewClient(github.WithHTTPClient(client))
+	if err != nil {
+		return nil, err
+	}
+
 	gn := &Github{
-		client:     github.NewClient(client),
+		client:     ghClient,
 		migrations: source.NewMigrations(),
 		options:    &github.RepositoryContentGetOptions{Ref: u.Fragment},
 	}
