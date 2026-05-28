@@ -1376,8 +1376,12 @@ github.com/mutecomm/go-sqlcipher/v4 v4.4.0 h1:sV1tWCWGAVlPhNGT95Q+z/txFxuhAYWwHD
 github.com/mutecomm/go-sqlcipher/v4 v4.4.0/go.mod h1:PyN04SaWalavxRGH9E8ZftG6Ju7rsPrGmQRjrEaVpiY=
 github.com/mutecomm/go-sqlcipher/v4 v4.4.2 h1:eM10bFtI4UvibIsKr10/QT7Yfz+NADfjZYh0GKrXUNc=
 github.com/mutecomm/go-sqlcipher/v4 v4.4.2/go.mod h1:mF2UmIpBnzFeBdu/ypTDb/LdbS0nk0dfSN1WUsWTjMA=
+github.com/nakagami/chacha20 v0.1.0 h1:2fbf5KeVUw7oRpAe6/A7DqvBJLYYu0ka5WstFbnkEVo=
+github.com/nakagami/chacha20 v0.1.0/go.mod h1:xpoujepNFA7MvYLvX5xKHzlOHimDrLI9Ll8zfOJ0l2E=
 github.com/nakagami/firebirdsql v0.0.0-20190310045651-3c02a58cfed8 h1:P48LjvUQpTReR3TQRbxSeSBsMXzfK0uol7eRcr7VBYQ=
 github.com/nakagami/firebirdsql v0.0.0-20190310045651-3c02a58cfed8/go.mod h1:86wM1zFnC6/uDBfZGNwB65O+pR2OFi5q/YQaEUid1qA=
+github.com/nakagami/firebirdsql v0.9.19 h1:57YhaeTYp6ul6h2th+R5yZRSJqOL7/P8L7OO3U4ewTc=
+github.com/nakagami/firebirdsql v0.9.19/go.mod h1:l3bG682R481NkM9CMlXz7zGaO2VTWnX5oTRReb3SAA0=
 github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdhx/f4=
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=

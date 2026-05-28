@@ -36,7 +36,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/microsoft/go-mssqldb v1.10.0
 	github.com/mutecomm/go-sqlcipher/v4 v4.4.2
-	github.com/nakagami/firebirdsql v0.0.0-20190310045651-3c02a58cfed8
+	github.com/nakagami/firebirdsql v0.9.19
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/neo4j/neo4j-go-driver/v6 v6.1.0
 	github.com/snowflakedb/gosnowflake v1.19.1
@@ -114,6 +114,7 @@ require (
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/sequential v0.6.0 // indirect
 	github.com/montanaflynn/stats v0.9.0 // indirect
+	github.com/nakagami/chacha20 v0.1.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
