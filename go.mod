@@ -3,10 +3,9 @@ module github.com/golang-migrate/migrate/v4
 go 1.25.7
 
 require (
-	cloud.google.com/go/spanner v1.88.0
+	cloud.google.com/go/spanner v1.91.0
 	cloud.google.com/go/storage v1.62.2
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
-	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/XSAM/otelsql v0.42.0
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.1
@@ -66,7 +65,7 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	cloud.google.com/go/auth v0.19.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/monitoring v1.24.3 // indirect
+	cloud.google.com/go/monitoring v1.25.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
