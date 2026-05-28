@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/XSAM/otelsql"
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/jackc/pgconn"
@@ -410,12 +410,17 @@ func (c *YugabyteDB) doTxWithRetry(
 	txOpts *sql.TxOptions,
 	fn func(tx *sql.Tx) error,
 ) error {
-	backOff := c.newBackoff(ctx)
+	b := &backoff.ExponentialBackOff{
+		InitialInterval:     backoff.DefaultInitialInterval,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          backoff.DefaultMultiplier,
+		MaxInterval:         c.config.MaxRetryInterval,
+	}
 
-	return backoff.Retry(func() error {
+	_, err := backoff.Retry(ctx, func() (struct{}, error) {
 		tx, err := c.db.BeginTx(ctx, txOpts)
 		if err != nil {
-			return backoff.Permanent(err)
+			return struct{}{}, backoff.Permanent(err)
 		}
 
 		// If we've tried to commit the transaction Rollback just returns sql.ErrTxDone.
@@ -425,42 +430,27 @@ func (c *YugabyteDB) doTxWithRetry(
 
 		if err := fn(tx); err != nil {
 			if errIsRetryable(err) {
-				return err
+				return struct{}{}, err
 			}
 
-			return backoff.Permanent(err)
+			return struct{}{}, backoff.Permanent(err)
 		}
 
 		if err := tx.Commit(); err != nil {
 			if errIsRetryable(err) {
-				return err
+				return struct{}{}, err
 			}
 
-			return backoff.Permanent(err)
+			return struct{}{}, backoff.Permanent(err)
 		}
 
-		return nil
-	}, backOff)
-}
-
-func (c *YugabyteDB) newBackoff(ctx context.Context) backoff.BackOff {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	retrier := backoff.WithMaxRetries(backoff.WithContext(&backoff.ExponentialBackOff{
-		InitialInterval:     backoff.DefaultInitialInterval,
-		RandomizationFactor: backoff.DefaultRandomizationFactor,
-		Multiplier:          backoff.DefaultMultiplier,
-		MaxInterval:         c.config.MaxRetryInterval,
-		MaxElapsedTime:      c.config.MaxRetryElapsedTime,
-		Stop:                backoff.Stop,
-		Clock:               backoff.SystemClock,
-	}, ctx), uint64(c.config.MaxRetries))
-
-	retrier.Reset()
-
-	return retrier
+		return struct{}{}, nil
+	},
+		backoff.WithBackOff(b),
+		backoff.WithMaxTries(uint(c.config.MaxRetries)),
+		backoff.WithMaxElapsedTime(c.config.MaxRetryElapsedTime),
+	)
+	return err
 }
 
 func errIsRetryable(err error) bool {
