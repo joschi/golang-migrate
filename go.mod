@@ -22,6 +22,7 @@ require (
 	github.com/gobuffalo/here v0.6.7
 	github.com/gocql/gocql v1.7.0
 	github.com/google/go-github/v39 v39.2.0
+	github.com/google/go-github/v88 v88.0.0
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v4 v4.18.3
