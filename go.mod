@@ -53,7 +53,7 @@ require (
 	golang.org/x/tools/godoc v0.1.0-deprecated
 	google.golang.org/api v0.282.0
 	modernc.org/ql v1.5.1
-	modernc.org/sqlite v1.50.1
+	modernc.org/sqlite v1.51.0
 )
 
 require (
