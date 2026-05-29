@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/golang-migrate/migrate/v4/database"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -366,18 +366,20 @@ func (m *Mongo) Lock(ctx context.Context) error {
 			Hostname:  hostname,
 			CreatedAt: time.Now(),
 		}
-		operation := func() error {
+		operation := func() (struct{}, error) {
 			timeout, cancelFunc := context.WithTimeout(ctx, contextWaitTimeout)
 			_, err := m.db.Collection(m.config.Locking.CollectionName).InsertOne(timeout, newLockObj)
 			defer cancelFunc()
-			return err
+			return struct{}{}, err
 		}
-		exponentialBackOff := backoff.NewExponentialBackOff()
-		duration := time.Duration(m.config.Locking.Timeout) * time.Second
-		exponentialBackOff.MaxElapsedTime = duration
-		exponentialBackOff.MaxInterval = time.Duration(m.config.Locking.Interval) * time.Second
 
-		err = backoff.Retry(operation, exponentialBackOff)
+		b := backoff.NewExponentialBackOff()
+		b.MaxInterval = time.Duration(m.config.Locking.Interval) * time.Second
+
+		_, err = backoff.Retry(ctx, operation,
+			backoff.WithBackOff(b),
+			backoff.WithMaxElapsedTime(time.Duration(m.config.Locking.Timeout)*time.Second),
+		)
 		if err != nil {
 			return database.ErrLocked
 		}

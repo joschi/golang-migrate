@@ -10,7 +10,7 @@ require (
 	github.com/XSAM/otelsql v0.42.0
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.18
-	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/cockroachdb/cockroach-go/v2 v2.4.3
 	github.com/couchbase/gocb/v2 v2.12.3
 	github.com/dhui/dktest v0.4.6
