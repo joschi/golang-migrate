@@ -34,11 +34,9 @@ require (
 	github.com/mutecomm/go-sqlcipher/v4 v4.4.2
 	github.com/nakagami/firebirdsql v0.9.19
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
-	github.com/neo4j/neo4j-go-driver/v6 v6.1.0
 	github.com/snowflakedb/gosnowflake v1.19.1
-	github.com/snowflakedb/gosnowflake/v2 v2.0.2
 	github.com/stretchr/testify v1.11.1
-	github.com/xanzy/go-gitlab v0.115.0
+	gitlab.com/gitlab-org/api/client-go/v2 v2.36.0
 	go.mongodb.org/mongo-driver v1.17.9
 	go.mongodb.org/mongo-driver/v2 v2.6.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.69.0
@@ -59,7 +57,7 @@ require (
 )
 
 require (
-	cel.dev/expr v0.25.1 // indirect
+	cel.dev/expr v0.25.2 // indirect
 	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/monitoring v1.25.0 // indirect
@@ -106,7 +104,7 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/montanaflynn/stats v0.9.0 // indirect
@@ -159,7 +157,7 @@ require (
 	github.com/aws/smithy-go v1.27.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
-	github.com/danieljoos/wincred v1.2.2 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect

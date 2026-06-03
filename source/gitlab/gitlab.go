@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4/source"
-	"github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -59,10 +59,9 @@ func (g *Gitlab) Open(ctx context.Context, url string) (source.Driver, error) {
 		return nil, ErrNoAccessToken
 	}
 
-	gn := &Gitlab{
-		client:     gitlab.NewClient(&http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}, password),
-		url:        url,
-		migrations: source.NewMigrations(),
+	httpClient := http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+	options := []gitlab.ClientOptionFunc{
+		gitlab.WithHTTPClient(&httpClient),
 	}
 
 	if u.Host != "" {
@@ -71,10 +70,18 @@ func (g *Gitlab) Open(ctx context.Context, url string) (source.Driver, error) {
 			Host:   u.Host,
 		}
 
-		err = gn.client.SetBaseURL(uri.String())
-		if err != nil {
-			return nil, ErrInvalidHost
-		}
+		options = append(options, gitlab.WithBaseURL(uri.String()))
+	}
+
+	client, err := gitlab.NewClient(password, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	gn := &Gitlab{
+		client:     client,
+		url:        url,
+		migrations: source.NewMigrations(),
 	}
 
 	pe := strings.Split(strings.Trim(u.Path, "/"), "/")
