@@ -10,21 +10,18 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/golang-migrate/migrate/v4"
 	"io"
 	"strconv"
 	"strings"
 	"testing"
-)
 
-import (
 	"github.com/dhui/dktest"
-)
-
-import (
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+
 	dt "github.com/golang-migrate/migrate/v4/database/testing"
 	"github.com/golang-migrate/migrate/v4/dktesting"
+
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
@@ -189,7 +186,7 @@ func TestErrorParsing(t *testing.T) {
 		}()
 
 		wantErr := `migration failed: syntax error at or near "TABLEE" (column 37) in line 1: CREATE TABLE foo ` +
-			`(foo text); CREATE TABLEE bar (bar text); (details: pq: syntax error at or near "TABLEE")`
+			`(foo text); CREATE TABLEE bar (bar text); (details: pq: syntax error at or near "TABLEE" at column 37 (42601))`
 		if err := d.Run(ctx, bytes.NewReader([]byte("CREATE TABLE foo (foo text); CREATE TABLEE bar (bar text);"))); err == nil {
 			t.Fatal("expected err but got nil")
 		} else if err.Error() != wantErr {

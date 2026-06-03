@@ -249,7 +249,7 @@ func testErrorParsing(t *testing.T) {
 		}()
 
 		wantErr := `migration failed: syntax error at or near "TABLEE" (column 37) in line 1: CREATE TABLE foo ` +
-			`(foo text); CREATE TABLEE bar (bar text); (details: pq: syntax error at or near "TABLEE")`
+			`(foo text); CREATE TABLEE bar (bar text); (details: pq: syntax error at or near "TABLEE" at column 37 (42601))`
 		if err := d.Run(ctx, strings.NewReader("CREATE TABLE foo (foo text); CREATE TABLEE bar (bar text);")); err == nil {
 			t.Fatal("expected err but got nil")
 		} else if err.Error() != wantErr {
