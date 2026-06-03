@@ -56,7 +56,10 @@ func (b *Bitbucket) Open(ctx context.Context, url string) (source.Driver, error)
 		return nil, ErrNoAccessToken
 	}
 
-	cl := bitbucket.NewBasicAuth(u.User.Username(), password)
+	cl, err := bitbucket.NewBasicAuth(u.User.Username(), password)
+	if err != nil {
+		return nil, err
+	}
 	cl.HttpClient.Transport = otelhttp.NewTransport(http.DefaultTransport)
 
 	cfg := &Config{}
