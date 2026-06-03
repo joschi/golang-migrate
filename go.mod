@@ -53,7 +53,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/tools/godoc v0.1.0-deprecated
-	google.golang.org/api v0.282.0
+	google.golang.org/api v0.283.0
 	modernc.org/ql v1.5.1
 	modernc.org/sqlite v1.51.0
 )
