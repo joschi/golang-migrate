@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	cloud.google.com/go/spanner v1.91.0
-	cloud.google.com/go/storage v1.62.2
+	cloud.google.com/go/storage v1.62.3
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/XSAM/otelsql v0.42.0
