@@ -676,6 +676,8 @@ gitlab.com/gitlab-org/api/client-go/v2 v2.36.1 h1:R8fp0bVo+Z+tVU/TYjVaGz0ZKrfJrf
 gitlab.com/gitlab-org/api/client-go/v2 v2.36.1/go.mod h1:ISUxoED9rAsGW54FtdN+uqMBssj71/x7ccK5lS6diOA=
 gitlab.com/gitlab-org/api/client-go/v2 v2.36.2 h1:HWnpdT7afRfRsQ36S9GM7S1RknyenscC3+vHlBCZmdw=
 gitlab.com/gitlab-org/api/client-go/v2 v2.36.2/go.mod h1:u1CIGEqP9r0odlAE1ODeHVbbHpo6gNBtxnBOSSI4NVI=
+gitlab.com/gitlab-org/api/client-go/v2 v2.36.3 h1:jX/F8N10ZKMktrhRLkM+pOlU5UwTkNUkzvSFttCiyWM=
+gitlab.com/gitlab-org/api/client-go/v2 v2.36.3/go.mod h1:u1CIGEqP9r0odlAE1ODeHVbbHpo6gNBtxnBOSSI4NVI=
 gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b h1:7gd+rd8P3bqcn/96gOZa3F5dpJr/vEiDQYlNb/y2uNs=
 gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b/go.mod h1:T3BPAOm2cqquPa0MKWeNkmOM5RQsRhkrwMWonFMN7fE=
 go.mongodb.org/mongo-driver v1.11.4/go.mod h1:PTSz5yu21bkT/wXpkS7WR5f0ddqw5quethTUn9WM+2g=
