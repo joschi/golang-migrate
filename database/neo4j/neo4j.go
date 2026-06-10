@@ -15,7 +15,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/multistmt"
-	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 )
 
 func init() {
@@ -41,14 +41,14 @@ type Config struct {
 }
 
 type Neo4j struct {
-	driver neo4j.DriverWithContext
+	driver neo4j.Driver
 	lock   uint32
 
 	// Open and WithInstance need to guarantee that config is never nil
 	config *Config
 }
 
-func WithInstance(ctx context.Context, driver neo4j.DriverWithContext, config *Config) (database.Driver, error) {
+func WithInstance(ctx context.Context, driver neo4j.Driver, config *Config) (database.Driver, error) {
 	if config == nil {
 		return nil, ErrNilConfig
 	}
@@ -93,7 +93,7 @@ func (n *Neo4j) Open(ctx context.Context, url string) (database.Driver, error) {
 
 	uri.RawQuery = ""
 
-	driver, err := neo4j.NewDriverWithContext(uri.String(), authToken)
+	driver, err := neo4j.NewDriver(uri.String(), authToken)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (n *Neo4j) Run(ctx context.Context, migration io.Reader) (err error) {
 			}
 
 			result, err := tx.Run(ctx, string(trimStmt), nil)
-			if _, err := neo4j.CollectWithContext(ctx, result, err); err != nil {
+			if _, err := neo4j.Collect(ctx, result, err); err != nil {
 				stmtRunErr = err
 				return false
 			}
@@ -185,7 +185,7 @@ func (n *Neo4j) Run(ctx context.Context, migration io.Reader) (err error) {
 	}
 
 	res, err := session.Run(ctx, string(body[:]), nil)
-	_, err = neo4j.CollectWithContext(ctx, res, err)
+	_, err = neo4j.Collect(ctx, res, err)
 	return err
 }
 
@@ -200,7 +200,7 @@ func (n *Neo4j) SetVersion(ctx context.Context, version int, dirty bool) (err er
 	query := fmt.Sprintf("MERGE (sm:%s {version: $version}) SET sm.dirty = $dirty, sm.ts = datetime()",
 		n.config.MigrationsLabel)
 	res, err := session.Run(ctx, query, map[string]interface{}{"version": version, "dirty": dirty})
-	_, err = neo4j.CollectWithContext(ctx, res, err)
+	_, err = neo4j.Collect(ctx, res, err)
 	if err != nil {
 		return err
 	}
@@ -272,7 +272,7 @@ func (n *Neo4j) Drop(ctx context.Context) (err error) {
 	}()
 
 	res, err := session.Run(ctx, "MATCH (n) DETACH DELETE n", nil)
-	if _, err := neo4j.CollectWithContext(ctx, res, err); err != nil {
+	if _, err := neo4j.Collect(ctx, res, err); err != nil {
 		return err
 	}
 	return nil
@@ -291,7 +291,7 @@ func (n *Neo4j) ensureVersionConstraint(ctx context.Context) (err error) {
 
 	var neo4jVersion string
 	result, err := session.Run(ctx, "CALL dbms.components() YIELD name, versions UNWIND versions AS version WITH name, version WHERE name = 'Neo4j Kernel' RETURN version LIMIT 1", nil)
-	res, err := neo4j.CollectWithContext(ctx, result, err)
+	res, err := neo4j.Collect(ctx, result, err)
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func (n *Neo4j) ensureVersionConstraint(ctx context.Context) (err error) {
 	}
 
 	result, err = session.Run(ctx, query, nil)
-	if _, err := neo4j.CollectWithContext(ctx, result, err); err != nil {
+	if _, err := neo4j.Collect(ctx, result, err); err != nil {
 		return err
 	}
 	return nil
