@@ -4,7 +4,7 @@
 version: 2.1
 
 orbs:
-  go: circleci/go@3.0.4
+  go: circleci/go@4.0.0
 
 jobs:
   lint:
