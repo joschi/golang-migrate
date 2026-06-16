@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/v4
 go 1.26
 
 require (
-	cloud.google.com/go/spanner v1.91.0
+	cloud.google.com/go/spanner v1.92.0
 	cloud.google.com/go/storage v1.62.3
 	gitea.dev/sdk v1.1.0
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
@@ -18,7 +18,7 @@ require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.7.0
 	github.com/duckdb/duckdb-go/v2 v2.10503.0
-	github.com/fsouza/fake-gcs-server v1.17.0
+	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gobuffalo/here v0.6.7
 	github.com/gocql/gocql v1.7.0
@@ -39,7 +39,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	gitlab.com/gitlab-org/api/client-go/v2 v2.39.0
 	go.mongodb.org/mongo-driver v1.17.9
-	go.mongodb.org/mongo-driver/v2 v2.6.0
+	go.mongodb.org/mongo-driver/v2 v2.6.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gocql/gocql/otelgocql v0.43.0
 	go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo v0.69.0
@@ -61,7 +61,8 @@ require (
 	cel.dev/expr v0.25.2 // indirect
 	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/monitoring v1.25.0 // indirect
+	cloud.google.com/go/monitoring v1.29.0 // indirect
+	cloud.google.com/go/pubsub/v2 v2.4.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/42wim/httpsig v1.2.4 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
@@ -104,6 +105,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
+	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -115,6 +117,7 @@ require (
 	github.com/nakagami/chacha20 v0.1.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
+	github.com/pkg/xattr v0.4.12 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
@@ -131,8 +134,8 @@ require (
 require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	cloud.google.com/go/iam v1.7.0 // indirect
-	cloud.google.com/go/longrunning v0.9.0 // indirect
+	cloud.google.com/go/iam v1.11.0 // indirect
+	cloud.google.com/go/longrunning v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1 // indirect
@@ -179,8 +182,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
 	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
-	github.com/gorilla/handlers v1.4.2 // indirect
-	github.com/gorilla/mux v1.7.4 // indirect
+	github.com/gorilla/handlers v1.5.2 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -224,7 +227,7 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11 // indirect

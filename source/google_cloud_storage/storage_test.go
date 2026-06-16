@@ -11,18 +11,18 @@ import (
 
 func Test(t *testing.T) {
 	server := fakestorage.NewServer([]fakestorage.Object{
-		{BucketName: "some-bucket", Name: "staging/migrations/1_foobar.up.sql", Content: []byte("1 up")},
-		{BucketName: "some-bucket", Name: "staging/migrations/1_foobar.down.sql", Content: []byte("1 down")},
-		{BucketName: "some-bucket", Name: "prod/migrations/1_foobar.up.sql", Content: []byte("1 up")},
-		{BucketName: "some-bucket", Name: "prod/migrations/1_foobar.down.sql", Content: []byte("1 down")},
-		{BucketName: "some-bucket", Name: "prod/migrations/3_foobar.up.sql", Content: []byte("3 up")},
-		{BucketName: "some-bucket", Name: "prod/migrations/4_foobar.up.sql", Content: []byte("4 up")},
-		{BucketName: "some-bucket", Name: "prod/migrations/4_foobar.down.sql", Content: []byte("4 down")},
-		{BucketName: "some-bucket", Name: "prod/migrations/5_foobar.down.sql", Content: []byte("5 down")},
-		{BucketName: "some-bucket", Name: "prod/migrations/7_foobar.up.sql", Content: []byte("7 up")},
-		{BucketName: "some-bucket", Name: "prod/migrations/7_foobar.down.sql", Content: []byte("7 down")},
-		{BucketName: "some-bucket", Name: "prod/migrations/not-a-migration.txt"},
-		{BucketName: "some-bucket", Name: "prod/migrations/0-random-stuff/whatever.txt"},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "staging/migrations/1_foobar.up.sql"}, Content: []byte("1 up")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "staging/migrations/1_foobar.down.sql"}, Content: []byte("1 down")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/1_foobar.up.sql"}, Content: []byte("1 up")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/1_foobar.down.sql"}, Content: []byte("1 down")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/3_foobar.up.sql"}, Content: []byte("3 up")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/4_foobar.up.sql"}, Content: []byte("4 up")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/4_foobar.down.sql"}, Content: []byte("4 down")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/5_foobar.down.sql"}, Content: []byte("5 down")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/7_foobar.up.sql"}, Content: []byte("7 up")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/7_foobar.down.sql"}, Content: []byte("7 down")},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/not-a-migration.txt"}},
+		{ObjectAttrs: fakestorage.ObjectAttrs{BucketName: "some-bucket", Name: "prod/migrations/0-random-stuff/whatever.txt"}},
 	})
 	defer server.Stop()
 	driver := gcs{
