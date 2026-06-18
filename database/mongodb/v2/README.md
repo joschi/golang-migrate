@@ -4,7 +4,7 @@
 * Driver work with mongo through [db.runCommands](https://docs.mongodb.com/manual/reference/command/)
 * Migrations support json format. It contains array of commands for `db.runCommand`. Every command is executed in separate request to database 
 * All keys have to be in quotes `"`
-* [Examples](./examples)
+* [Examples](../examples)
 
 # Usage
 
