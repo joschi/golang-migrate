@@ -1,5 +1,5 @@
 SOURCE ?= file go_bindata github github_ee bitbucket aws_s3 google_cloud_storage godoc_vfs gitlab gitea
-DATABASE ?= postgres mysql redshift cassandra cassandra_v2 spanner cockroachdb yugabytedb clickhouse mongodb mongodb_v2 sqlserver firebird neo4j pgx pgx5 rqlite couchbase
+DATABASE ?= postgres mysql redshift cassandra cassandra_v2 spanner cockroachdb yugabytedb clickhouse mongodb_v2 sqlserver firebird neo4j pgx5 rqlite couchbase
 DATABASE_TEST ?= $(DATABASE) sqlite sqlite3 sqlcipher duckdb
 VERSION ?= $(shell git describe --tags 2>/dev/null | cut -c 2-)
 TEST_FLAGS ?=
