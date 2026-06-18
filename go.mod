@@ -21,7 +21,6 @@ require (
 	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gobuffalo/here v0.6.7
-	github.com/gocql/gocql v1.7.0
 	github.com/google/go-github/v88 v88.0.0
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
@@ -39,7 +38,6 @@ require (
 	gitlab.com/gitlab-org/api/client-go/v2 v2.39.0
 	go.mongodb.org/mongo-driver/v2 v2.7.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.69.0
-	go.opentelemetry.io/contrib/instrumentation/github.com/gocql/gocql/otelgocql v0.43.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
@@ -188,7 +186,6 @@ require (
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
-	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
