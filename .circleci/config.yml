@@ -28,6 +28,7 @@ jobs:
       image: ubuntu-2404:2025.09.1
     # https://circleci.com/docs/reference/configuration-reference/#linuxvm-execution-environment
     resource_class: medium
+    parallelism: 4
     steps:
       - checkout
       - go/install:
@@ -35,7 +36,9 @@ jobs:
       - go/with-cache:
           steps:
             - go/mod-download
-            - run: make test
+            - run: circleci run testsuite "ci tests"
+            - store_test_results:
+                path: test-reports
 
 workflows:
   lint-and-test:
