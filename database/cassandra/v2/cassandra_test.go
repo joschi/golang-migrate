@@ -3,12 +3,10 @@ package v2
 import (
 	"context"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/dhui/dktest"
-	"github.com/golang-migrate/migrate/v4"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 
@@ -19,7 +17,7 @@ import (
 )
 
 var (
-	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
+	opts = dktesting.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
 	// Supported versions:
 	// - https://cassandra.apache.org/_/download.html
 	// - https://docs.scylladb.com/stable/versioning/version-support.html
@@ -33,7 +31,7 @@ var (
 	}
 )
 
-func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
+func isReady(ctx context.Context, c dktesting.ContainerInfo) bool {
 	// Cassandra exposes 5 ports (7000, 7001, 7199, 9042 & 9160)
 	// We only need the port bound to 9042
 	ip, portStr, err := c.Port(9042)
@@ -63,19 +61,10 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 func Test(t *testing.T) {
 	t.Run("test", test)
 	t.Run("testMigrate", testMigrate)
-
-	t.Cleanup(func() {
-		for _, spec := range specs {
-			t.Log("Cleaning up ", spec.ImageName)
-			if err := spec.Cleanup(); err != nil {
-				t.Error("Error removing ", spec.ImageName, "error:", err)
-			}
-		}
-	})
 }
 
 func test(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ip, port, err := c.Port(9042)
 		if err != nil {
 			t.Fatal("Unable to get mapped port:", err)
@@ -96,7 +85,7 @@ func test(t *testing.T) {
 }
 
 func testMigrate(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ip, port, err := c.Port(9042)
 		if err != nil {
 			t.Fatal("Unable to get mapped port:", err)

@@ -10,14 +10,13 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
 	"io"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/dhui/dktest"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
 
 	dt "github.com/golang-migrate/migrate/v4/database/testing"
 	"github.com/golang-migrate/migrate/v4/dktesting"
@@ -27,10 +26,12 @@ import (
 
 const (
 	pgPassword = "redshift"
+
+	defaultPort uint16 = 5432
 )
 
 var (
-	opts = dktest.Options{
+	opts = dktesting.Options{
 		Env:          map[string]string{"POSTGRES_PASSWORD": pgPassword},
 		PortRequired: true,
 		ReadyFunc:    isReady,
@@ -53,8 +54,8 @@ func connectionString(schema, host, port string) string {
 	return fmt.Sprintf("%s://postgres:%s@%s:%s/postgres?sslmode=disable", schema, pgPassword, host, port)
 }
 
-func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
-	ip, port, err := c.FirstPort()
+func isReady(ctx context.Context, c dktesting.ContainerInfo) bool {
+	ip, port, err := c.Port(defaultPort)
 	if err != nil {
 		return false
 	}
@@ -81,10 +82,21 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 	return true
 }
 
+// SkipIfUnsupportedArch skips the test on architectures not supported by the
+// migrate/postgres8:8 image, which is only published for amd64. It is called
+// before starting a container so unsupported architectures skip immediately
+// instead of waiting for the container to time out.
+func SkipIfUnsupportedArch(t *testing.T) {
+	if !strings.HasPrefix(runtime.GOARCH, "amd") {
+		t.Skipf("migrate/postgres8:8 is not supported on arch %s", runtime.GOARCH)
+	}
+}
+
 func Test(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,9 +117,10 @@ func Test(t *testing.T) {
 }
 
 func TestMigrate(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -132,9 +145,10 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestMultiStatement(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -166,9 +180,10 @@ func TestMultiStatement(t *testing.T) {
 }
 
 func TestErrorParsing(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,9 +211,10 @@ func TestErrorParsing(t *testing.T) {
 }
 
 func TestFilterCustomQuery(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -218,9 +234,10 @@ func TestFilterCustomQuery(t *testing.T) {
 }
 
 func TestWithSchema(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -292,9 +309,10 @@ func TestWithInstance(t *testing.T) {
 }
 
 func TestRedshift_Lock(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	SkipIfUnsupportedArch(t)
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
-		ip, port, err := c.FirstPort()
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
