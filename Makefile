@@ -47,7 +47,7 @@ test-with-flags:
 
 
 kill-orphaned-docker-containers:
-	docker rm -f $(shell docker ps -aq --filter label=migrate_test)
+	docker rm -f $(shell docker ps -aq --filter label=org.testcontainers=true)
 
 
 html-coverage:
