@@ -7,17 +7,15 @@ import (
 
 	"log"
 
+	"github.com/golang-migrate/migrate/v4"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"io"
 	"os"
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/dhui/dktest"
-	"github.com/golang-migrate/migrate/v4"
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	dt "github.com/golang-migrate/migrate/v4/database/testing"
 	"github.com/golang-migrate/migrate/v4/dktesting"
@@ -25,8 +23,10 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
+const defaultPort uint16 = 27017
+
 var (
-	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady}
+	opts = dktesting.Options{PortRequired: true, ReadyFunc: isReady}
 	// Supported versions: https://www.mongodb.com/support-policy
 	specs = []dktesting.ContainerSpec{
 		{ImageName: "mongo:5.0", Options: opts},
@@ -42,8 +42,8 @@ func mongoConnectionString(host, port string) string {
 	return fmt.Sprintf("mongodb://%s:%s/testMigration?connect=direct", host, port)
 }
 
-func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
-	ip, port, err := c.FirstPort()
+func isReady(ctx context.Context, c dktesting.ContainerInfo) bool {
+	ip, port, err := c.Port(defaultPort)
 	if err != nil {
 		return false
 	}
@@ -75,20 +75,11 @@ func Test(t *testing.T) {
 	t.Run("testMigrate", testMigrate)
 	t.Run("testWithAuth", testWithAuth)
 	t.Run("testLockWorks", testLockWorks)
-
-	t.Cleanup(func() {
-		for _, spec := range specs {
-			t.Log("Cleaning up ", spec.ImageName)
-			if err := spec.Cleanup(); err != nil {
-				t.Error("Error removing ", spec.ImageName, "error:", err)
-			}
-		}
-	})
 }
 
 func test(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ip, port, err := c.FirstPort()
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -113,8 +104,8 @@ func test(t *testing.T) {
 }
 
 func testMigrate(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ip, port, err := c.FirstPort()
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -139,8 +130,8 @@ func testMigrate(t *testing.T) {
 }
 
 func testWithAuth(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ip, port, err := c.FirstPort()
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -194,8 +185,8 @@ func testWithAuth(t *testing.T) {
 }
 
 func testLockWorks(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
-		ip, port, err := c.FirstPort()
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,20 +242,11 @@ func testLockWorks(t *testing.T) {
 
 func TestTransaction(t *testing.T) {
 	transactionSpecs := []dktesting.ContainerSpec{
-		{ImageName: "mongo:4", Options: dktest.Options{PortRequired: true, ReadyFunc: isReady,
+		{ImageName: "mongo:4", Options: dktesting.Options{PortRequired: true, ReadyFunc: isReady,
 			Cmd: []string{"mongod", "--bind_ip_all", "--replSet", "rs0"}}},
 	}
-	t.Cleanup(func() {
-		for _, spec := range transactionSpecs {
-			t.Log("Cleaning up ", spec.ImageName)
-			if err := spec.Cleanup(); err != nil {
-				t.Error("Error removing ", spec.ImageName, "error:", err)
-			}
-		}
-	})
-
-	dktesting.ParallelTest(t, transactionSpecs, func(t *testing.T, c dktest.ContainerInfo) {
-		ip, port, err := c.FirstPort()
+	dktesting.ParallelTest(t, transactionSpecs, func(t *testing.T, c dktesting.ContainerInfo) {
+		ip, port, err := c.Port(defaultPort)
 		if err != nil {
 			t.Fatal(err)
 		}
