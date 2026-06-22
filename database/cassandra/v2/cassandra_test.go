@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/dhui/dktest"
 	"github.com/golang-migrate/migrate/v4"
@@ -18,7 +19,7 @@ import (
 )
 
 var (
-	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady}
+	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
 	// Supported versions:
 	// - https://cassandra.apache.org/_/download.html
 	// - https://docs.scylladb.com/stable/versioning/version-support.html
