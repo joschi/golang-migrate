@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/dhui/dktest"
 	"github.com/golang-migrate/migrate/v4"
@@ -18,16 +19,17 @@ import (
 )
 
 var (
-	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady}
-	// Supported versions: http://cassandra.apache.org/download/
-	// Although Cassandra 2.x is supported by the Apache Foundation,
-	// the migrate db driver only supports Cassandra 3.x since it uses
-	// the system_schema keyspace.
-	// last ScyllaDB version tested is 5.1.11
+	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
+	// Supported versions:
+	// - https://cassandra.apache.org/_/download.html
+	// - https://docs.scylladb.com/stable/versioning/version-support.html
 	specs = []dktesting.ContainerSpec{
-		{ImageName: "cassandra:3.0", Options: opts},
-		{ImageName: "cassandra:3.11", Options: opts},
-		{ImageName: "scylladb/scylla:5.1.11", Options: opts},
+		{ImageName: "cassandra:4.0", Options: opts},
+		{ImageName: "cassandra:4.1", Options: opts},
+		{ImageName: "cassandra:5.0", Options: opts},
+		{ImageName: "scylladb/scylla:2025.1", Options: opts},
+		{ImageName: "scylladb/scylla:2025.4", Options: opts},
+		{ImageName: "scylladb/scylla:2026.1", Options: opts},
 	}
 )
 
