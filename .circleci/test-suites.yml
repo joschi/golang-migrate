@@ -6,7 +6,6 @@ analysis: go tool gotestsum -- -coverprofile="<< outputs.go-coverage >>" -cover 
 options:
   dynamic-test-splitting: true
   max-auto-rerun: 3
-  test-impact-analysis: true
   full-test-run-paths:
     - go.mod
     - .circleci/*.yml
