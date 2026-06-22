@@ -14,10 +14,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/dhui/dktest"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 
 	dt "github.com/golang-migrate/migrate/v4/database/testing"
 	"github.com/golang-migrate/migrate/v4/dktesting"
@@ -31,7 +27,7 @@ const (
 )
 
 var (
-	opts = dktest.Options{
+	opts = dktesting.Options{
 		PortRequired: true,
 		ReadyFunc:    isReady,
 		PullTimeout:  5 * time.Minute,
@@ -39,12 +35,7 @@ var (
 		ReadyTimeout: 60 * time.Second,
 		LogStderr:    true,
 		// Expose required ports: 8091 (mgmt), 8092 (views/capi), 8093 (query), 11210 (KV)
-		PortBindings: nat.PortMap{
-			"8091/tcp":  []nat.PortBinding{{}},
-			"8092/tcp":  []nat.PortBinding{{}},
-			"8093/tcp":  []nat.PortBinding{{}},
-			"11210/tcp": []nat.PortBinding{{}},
-		},
+		ExposedPorts: []string{"8091/tcp", "8092/tcp", "8093/tcp", "11210/tcp"},
 	}
 	specs = []dktesting.ContainerSpec{
 		{ImageName: "couchbase:community-7.6.2", Options: opts},
@@ -85,34 +76,7 @@ func restReq(method, fullURL string, form url.Values, useAuth bool) ([]byte, err
 	return body, nil
 }
 
-// dockerExec runs a command inside a container and returns the output.
-func dockerExec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	dc, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = dc.Close() }()
-
-	exec, err := dc.ContainerExecCreate(ctx, containerID, container.ExecOptions{
-		Cmd:          cmd,
-		AttachStdout: true,
-		AttachStderr: true,
-	})
-	if err != nil {
-		return "", fmt.Errorf("exec create: %w", err)
-	}
-
-	resp, err := dc.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
-	if err != nil {
-		return "", fmt.Errorf("exec attach: %w", err)
-	}
-	defer resp.Close()
-
-	out, _ := io.ReadAll(resp.Reader)
-	return string(out), nil
-}
-
-func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
+func isReady(ctx context.Context, c dktesting.ContainerInfo) bool {
 	ip, mgmtPort, err := c.Port(8091)
 	if err != nil {
 		return false
@@ -143,7 +107,7 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 	}
 
 	// 2. Provision the cluster via REST API
-	if err := initCluster(ctx, c.ID, baseURL, ip, mgmtPort, kvPort, n1qlPort, capiPort); err != nil {
+	if err := initCluster(ctx, c, baseURL, ip, mgmtPort, kvPort, n1qlPort, capiPort); err != nil {
 		log.Printf("init cluster error: %v", err)
 		return false
 	}
@@ -218,7 +182,7 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 // initCluster provisions the Couchbase cluster via the REST API.
 // Alternate addresses are set using couchbase-cli inside the container
 // (the REST API doesn't reliably set N1QL alternate ports).
-func initCluster(ctx context.Context, containerID, baseURL, host, mgmtPort, kvPort, n1qlPort, capiPort string) error {
+func initCluster(ctx context.Context, c dktesting.ContainerInfo, baseURL, host, mgmtPort, kvPort, n1qlPort, capiPort string) error {
 	// Check if cluster is already initialized
 	_, err := restReq(http.MethodGet, baseURL+"/pools/default", nil, true)
 	alreadyInitialized := err == nil
@@ -242,7 +206,7 @@ func initCluster(ctx context.Context, containerID, baseURL, host, mgmtPort, kvPo
 	// Set alternate addresses using couchbase-cli inside the container
 	// (this reliably sets all service ports including n1ql, unlike the REST API)
 	portsArg := fmt.Sprintf("mgmt=%s,kv=%s,capi=%s,n1ql=%s", mgmtPort, kvPort, capiPort, n1qlPort)
-	out, err := dockerExec(ctx, containerID, []string{
+	_, out, err := c.Exec(ctx, []string{
 		"couchbase-cli", "setting-alternate-address",
 		"-c", "127.0.0.1:8091",
 		"--username", testUsername,
@@ -277,12 +241,12 @@ func Test(t *testing.T) {
 	t.Run("testLockWorks", testLockWorks)
 
 	// Note: we intentionally do not clean up images here.
-	// Containers are cleaned up by dktest automatically.
+	// Containers are cleaned up by testcontainers automatically.
 	// Removing images would force slow re-pulls on every test run.
 }
 
 func test(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, kvPort, err := c.Port(11210)
 		if err != nil {
@@ -307,7 +271,7 @@ func test(t *testing.T) {
 }
 
 func testWithInstance(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, kvPort, err := c.Port(11210)
 		if err != nil {
@@ -349,7 +313,7 @@ func testWithInstance(t *testing.T) {
 }
 
 func testLockWorks(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, kvPort, err := c.Port(11210)
 		if err != nil {
