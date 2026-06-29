@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/XSAM/otelsql"
-	"github.com/cenkalti/backoff/v5"
+	"github.com/cenkalti/backoff/v6"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/jackc/pgconn"
@@ -450,6 +450,9 @@ func (c *YugabyteDB) doTxWithRetry(
 		backoff.WithMaxTries(uint(c.config.MaxRetries)),
 		backoff.WithMaxElapsedTime(c.config.MaxRetryElapsedTime),
 	)
+	if retryErr := backoff.AsRetryError(err); retryErr != nil {
+		return retryErr.LastErr
+	}
 	return err
 }
 
