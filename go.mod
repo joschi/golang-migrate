@@ -22,6 +22,7 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gobuffalo/here v0.6.7
 	github.com/google/go-github/v88 v88.0.0
+	github.com/google/go-github/v89 v89.0.0
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.10.0
