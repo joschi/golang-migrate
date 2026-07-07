@@ -13,7 +13,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/golang-migrate/migrate/v4/source"
-	"github.com/google/go-github/v88/github"
+	"github.com/google/go-github/v89/github"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
