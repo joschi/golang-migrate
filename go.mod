@@ -32,7 +32,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.10.0
 	github.com/mutecomm/go-sqlcipher/v4 v4.4.2
 	github.com/nakagami/firebirdsql v0.9.19
-	github.com/neo4j/neo4j-go-driver/v6 v6.1.0
+	github.com/neo4j/neo4j-go-driver/v6 v6.2.0
 	github.com/snowflakedb/gosnowflake/v2 v2.1.0
 	github.com/stretchr/testify v1.11.1
 	gitlab.com/gitlab-org/api/client-go/v2 v2.46.0
