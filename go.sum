@@ -557,6 +557,8 @@ gitlab.com/gitlab-org/api/client-go/v2 v2.44.0 h1:Vtv2WKC8p9BAygu5VCZlZUwDhTQ7UM
 gitlab.com/gitlab-org/api/client-go/v2 v2.44.0/go.mod h1:pTbeBowtVA+0/ZExWEZYUGOrpu5qlRN5ZyOUf27BnVY=
 gitlab.com/gitlab-org/api/client-go/v2 v2.45.0 h1:jWWTMpyGUkdMllT9QF9HA6Jtc6CWtaP5tg/Hyh/1VqA=
 gitlab.com/gitlab-org/api/client-go/v2 v2.45.0/go.mod h1:1LK5UOowqo9apkL+zn7sM8t/hCzBV6F1b2RUIHL9+Oo=
+gitlab.com/gitlab-org/api/client-go/v2 v2.46.0 h1:t9QSeMck3kuHu9R6C7h8cYk4qBI4ZD4SQ0jspxKYs2E=
+gitlab.com/gitlab-org/api/client-go/v2 v2.46.0/go.mod h1:1LK5UOowqo9apkL+zn7sM8t/hCzBV6F1b2RUIHL9+Oo=
 gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b h1:7gd+rd8P3bqcn/96gOZa3F5dpJr/vEiDQYlNb/y2uNs=
 gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b/go.mod h1:T3BPAOm2cqquPa0MKWeNkmOM5RQsRhkrwMWonFMN7fE=
 go.einride.tech/aip v0.83.0 h1:TI21IdeOnLTwZEJ3BxtImIZk6bsN2Q+sd0x99SLiQ+M=
