@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/XSAM/otelsql"
-	"github.com/cenkalti/backoff/v6"
+	"github.com/cenkalti/backoff/v7"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/jackc/pgconn"
