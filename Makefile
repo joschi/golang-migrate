@@ -57,7 +57,6 @@ html-coverage:
 list-external-deps:
 	$(call external_deps,'.')
 	$(call external_deps,'./cli/...')
-	$(call external_deps,'./testing/...')
 
 	$(foreach v, $(SOURCE), $(call external_deps,'./source/$(v)/...'))
 	$(call external_deps,'./source/testing/...')
