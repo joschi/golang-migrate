@@ -36,7 +36,9 @@ jobs:
       - go/with-cache:
           steps:
             - go/mod-download
-            - run: circleci run testsuite "ci tests"
+            - run:
+                command: circleci run testsuite "ci tests"
+                no_output_timeout: 20m
             - store_test_results:
                 path: test-reports
 
