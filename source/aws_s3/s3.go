@@ -85,25 +85,44 @@ func parseURI(uri string) (*Config, error) {
 }
 
 func (s *s3Driver) loadMigrations(ctx context.Context) error {
-	output, err := s.s3client.ListObjects(ctx, &s3.ListObjectsInput{
+	input := &s3.ListObjectsInput{
 		Bucket:    aws.String(s.config.Bucket),
 		Prefix:    aws.String(s.config.Prefix),
 		Delimiter: aws.String("/"),
-	})
-	if err != nil {
-		return err
 	}
-	for _, object := range output.Contents {
-		_, fileName := path.Split(aws.ToString(object.Key))
-		m, err := source.DefaultParse(fileName)
+
+	// ListObjects returns at most 1000 keys per response, so paginate over
+	// every page; otherwise migrations beyond the first 1000 objects are
+	// silently dropped and never applied.
+	for {
+		output, err := s.s3client.ListObjects(ctx, input)
 		if err != nil {
-			continue
+			return err
 		}
-		if !s.migrations.Append(m) {
-			return fmt.Errorf("unable to parse file %v", aws.ToString(object.Key))
+
+		for _, object := range output.Contents {
+			_, fileName := path.Split(aws.ToString(object.Key))
+			m, err := source.DefaultParse(fileName)
+			if err != nil {
+				continue
+			}
+			if !s.migrations.Append(m) {
+				return fmt.Errorf("unable to parse file %v", aws.ToString(object.Key))
+			}
 		}
+
+		if !aws.ToBool(output.IsTruncated) {
+			return nil
+		}
+
+		// NextMarker is only populated when a Delimiter is set (which it always
+		// is here); fall back to the last returned key per the S3 API docs.
+		marker := aws.ToString(output.NextMarker)
+		if marker == "" && len(output.Contents) > 0 {
+			marker = aws.ToString(output.Contents[len(output.Contents)-1].Key)
+		}
+		input.Marker = aws.String(marker)
 	}
-	return nil
 }
 
 func (s *s3Driver) Close(ctx context.Context) error {
