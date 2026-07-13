@@ -8,7 +8,7 @@ require (
 	gitea.dev/sdk v1.2.0
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
 	github.com/ClickHouse/clickhouse-go/v2 v2.47.0
-	github.com/XSAM/otelsql v0.42.0
+	github.com/XSAM/otelsql v0.43.0
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.2
 	github.com/aws/aws-sdk-go-v2/config v1.32.29
 	github.com/cenkalti/backoff/v7 v7.0.0
@@ -220,7 +220,7 @@ require (
 	golang.org/x/mod v0.38.0
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
