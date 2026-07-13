@@ -1,7 +1,7 @@
 project_name: migrate
 before:
   hooks:
-    - go mod tidy
+    - go work sync
 builds:
   - env:
       - CGO_ENABLED=0

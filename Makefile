@@ -35,15 +35,28 @@ test-short:
 
 test:
 	@-rm -r $(COVERAGE_DIR)
-	@mkdir $(COVERAGE_DIR)
-	make test-with-flags TEST_FLAGS='-v -race -covermode atomic -coverprofile $$(COVERAGE_DIR)/combined.txt -bench=. -benchmem -timeout 20m'
+	@mkdir -p $(COVERAGE_DIR)
+	go work sync
+	@for dir in $$(grep -E '^\s+\.' go.work | tr -d '\t '); do \
+		mod=$$(echo $$dir | sed 's|^\./||; s|/|_|g; s|^\.$|root|'); \
+		echo "Testing $$dir"; \
+		(cd $$dir && go test -v -race -covermode atomic \
+			-coverprofile "$(abspath $(COVERAGE_DIR))/$$mod.txt" \
+			-bench=. -benchmem -timeout 20m ./...) || exit 1; \
+	done
+	cat $(COVERAGE_DIR)/*.txt > $(COVERAGE_DIR)/combined.txt
 
 
 test-with-flags:
 	@echo SOURCE: $(SOURCE)
 	@echo DATABASE_TEST: $(DATABASE_TEST)
-
-	@go test $(TEST_FLAGS) ./...
+	go work sync
+	@failed=0; \
+	for dir in $$(grep -E '^\s+\.' go.work | tr -d '\t '); do \
+		echo "Testing $$dir"; \
+		(cd $$dir && go test $(TEST_FLAGS) ./...) || failed=1; \
+	done; \
+	exit $$failed
 
 
 kill-orphaned-docker-containers:
@@ -56,7 +69,7 @@ html-coverage:
 
 list-external-deps:
 	$(call external_deps,'.')
-	$(call external_deps,'./cli/...')
+	$(call external_deps,'./cmd/migrate/...')
 	$(call external_deps,'./testing/...')
 
 	$(foreach v, $(SOURCE), $(call external_deps,'./source/$(v)/...'))
