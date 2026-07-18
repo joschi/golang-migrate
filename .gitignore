@@ -9,3 +9,4 @@ vendor/
 .idea
 dist/
 /migrate
+/cmd/migrate/migrate
