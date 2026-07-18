@@ -9,6 +9,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
+	"github.com/golang-migrate/migrate/v4"
+	dt "github.com/golang-migrate/migrate/v4/database/testing"
+	"github.com/golang-migrate/migrate/v4/dktesting"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"math/big"
 	"math/rand"
@@ -16,24 +22,16 @@ import (
 	"os"
 	"strconv"
 	"testing"
-
-	"github.com/dhui/dktest"
-	"github.com/go-sql-driver/mysql"
-	"github.com/golang-migrate/migrate/v4"
-	dt "github.com/golang-migrate/migrate/v4/database/testing"
-	"github.com/golang-migrate/migrate/v4/dktesting"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/stretchr/testify/assert"
 )
 
 const defaultPort = 3306
 
 var (
-	opts = dktest.Options{
+	opts = dktesting.Options{
 		Env:          map[string]string{"MYSQL_ROOT_PASSWORD": "root", "MYSQL_DATABASE": "public"},
 		PortRequired: true, ReadyFunc: isReady,
 	}
-	optsAnsiQuotes = dktest.Options{
+	optsAnsiQuotes = dktesting.Options{
 		Env:          map[string]string{"MYSQL_ROOT_PASSWORD": "root", "MYSQL_DATABASE": "public"},
 		PortRequired: true, ReadyFunc: isReady,
 		Cmd: []string{"--sql-mode=ANSI_QUOTES"},
@@ -51,7 +49,7 @@ var (
 	}
 )
 
-func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
+func isReady(ctx context.Context, c dktesting.ContainerInfo) bool {
 	ip, port, err := c.Port(defaultPort)
 	if err != nil {
 		return false
@@ -82,7 +80,7 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 func Test(t *testing.T) {
 	// mysql.SetLogger(mysql.Logger(log.New(io.Discard, "", log.Ltime)))
 
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, port, err := c.Port(defaultPort)
 		if err != nil {
@@ -116,7 +114,7 @@ func Test(t *testing.T) {
 func TestMigrate(t *testing.T) {
 	// mysql.SetLogger(mysql.Logger(log.New(io.Discard, "", log.Ltime)))
 
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, port, err := c.Port(defaultPort)
 		if err != nil {
@@ -155,7 +153,7 @@ func TestMigrate(t *testing.T) {
 func TestMigrateAnsiQuotes(t *testing.T) {
 	// mysql.SetLogger(mysql.Logger(log.New(io.Discard, "", log.Ltime)))
 
-	dktesting.ParallelTest(t, specsAnsiQuotes, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specsAnsiQuotes, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, port, err := c.Port(defaultPort)
 		if err != nil {
@@ -192,7 +190,7 @@ func TestMigrateAnsiQuotes(t *testing.T) {
 }
 
 func TestLockWorks(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, port, err := c.Port(defaultPort)
 		if err != nil {
@@ -243,7 +241,7 @@ func TestNoLockParamValidation(t *testing.T) {
 }
 
 func TestNoLockWorks(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ctx := context.Background()
 		ip, port, err := c.Port(defaultPort)
 		if err != nil {
