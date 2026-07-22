@@ -48,7 +48,7 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/tools/godoc v0.1.0-deprecated
 	google.golang.org/api v0.289.0
-	modernc.org/ql v1.5.1
+	modernc.org/ql v1.5.2
 	modernc.org/sqlite v1.54.0
 )
 
@@ -233,8 +233,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/b v1.1.0 // indirect
-	modernc.org/db v1.1.1 // indirect
-	modernc.org/file v1.0.20 // indirect
+	modernc.org/db v1.2.0 // indirect
+	modernc.org/file v1.1.0 // indirect
 	modernc.org/fileutil v1.4.0 // indirect
 	modernc.org/golex v1.1.0 // indirect
 	modernc.org/internal v1.1.10 // indirect
