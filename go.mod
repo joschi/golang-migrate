@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	cloud.google.com/go/spanner v1.93.0
-	cloud.google.com/go/storage v1.63.1
+	cloud.google.com/go/storage v1.64.0
 	gitea.dev/sdk v1.2.0
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
 	github.com/ClickHouse/clickhouse-go/v2 v2.47.0
