@@ -16,7 +16,7 @@ require (
 	github.com/couchbase/gocb/v2 v2.12.4
 	github.com/dhui/dktest v0.4.6
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/docker/go-connections v0.7.0
+	github.com/docker/go-connections v0.8.1
 	github.com/duckdb/duckdb-go/v2 v2.10505.0
 	github.com/fsouza/fake-gcs-server v1.55.1
 	github.com/go-sql-driver/mysql v1.10.0
