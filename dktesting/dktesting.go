@@ -9,9 +9,11 @@ package dktesting
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -176,8 +178,8 @@ func runContainer(t *testing.T, spec ContainerSpec,
 		t.Fatalf("Failed to inspect container for image %s: %v", spec.ImageName, err)
 	}
 
-	if !waitReady(ctx, info, opts) {
-		t.Fatalf("Timed out waiting for container to get ready: %s", spec.ImageName)
+	if err := waitReady(ctx, info, opts); err != nil {
+		t.Fatalf("Container for image %s never became ready: %v", spec.ImageName, err)
 	}
 
 	testFunc(t, info)
@@ -194,9 +196,12 @@ func newContainerInfo(ctx context.Context, ctr tc.Container) (ContainerInfo, err
 	}, nil
 }
 
-func waitReady(ctx context.Context, info ContainerInfo, opts Options) bool {
+// waitReady polls opts.ReadyFunc once per second until it reports the container
+// is ready. It returns an error if the container exits or opts.Timeout elapses
+// before that happens.
+func waitReady(ctx context.Context, info ContainerInfo, opts Options) error {
 	if opts.ReadyFunc == nil {
-		return true
+		return nil
 	}
 
 	runCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
@@ -208,23 +213,72 @@ func waitReady(ctx context.Context, info ContainerInfo, opts Options) bool {
 		return opts.ReadyFunc(readyCtx, info)
 	}
 
-	// Check immediately so a container that is already up is not delayed by a
-	// full tick.
-	if check() {
-		return true
-	}
-
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for {
+		// Checked before the first tick so a container that is already up is
+		// not delayed by a full tick.
+		if check() {
+			return nil
+		}
+
+		// A container that has exited will never become ready, so report why
+		// instead of polling a dead container until the timeout.
+		if err := info.exitErr(ctx); err != nil {
+			return err
+		}
+
 		select {
 		case <-ticker.C:
-			if check() {
-				return true
-			}
 		case <-runCtx.Done():
-			return false
+			return fmt.Errorf("timed out after %s", opts.Timeout)
 		}
 	}
+}
+
+// exitErr describes why the container is no longer running, including its exit
+// code and logs. It returns nil while the container is still running, and also
+// when its state cannot be determined, so that transient inspect failures let
+// the caller keep polling.
+func (c ContainerInfo) exitErr(ctx context.Context) error {
+	insp, err := c.container.Inspect(ctx)
+	if err != nil || insp.State == nil || insp.State.Running {
+		return nil
+	}
+
+	msg := fmt.Sprintf("container exited with code %d", insp.State.ExitCode)
+	if insp.State.OOMKilled {
+		msg += " (out of memory)"
+	}
+	if insp.State.Error != "" {
+		msg += ": " + insp.State.Error
+	}
+	if logs := c.logTail(ctx, 20); logs != "" {
+		msg += "\ncontainer logs:\n" + logs
+	}
+	return errors.New(msg)
+}
+
+// logTail returns at most the last n lines of the container's combined
+// stdout/stderr, or an empty string if the logs cannot be read.
+func (c ContainerInfo) logTail(ctx context.Context, n int) string {
+	rc, err := c.container.Logs(ctx)
+	if err != nil {
+		return ""
+	}
+	defer func() {
+		_ = rc.Close()
+	}()
+
+	out, err := io.ReadAll(rc)
+	if err != nil && len(out) == 0 {
+		return ""
+	}
+
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }
