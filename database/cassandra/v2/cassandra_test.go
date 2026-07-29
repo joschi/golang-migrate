@@ -17,17 +17,31 @@ import (
 )
 
 var (
-	opts = dktesting.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
+	// Cassandra derives its JVM heap from the amount of RAM it sees on the
+	// host, which over-commits badly once several containers run side by side:
+	// on a 12 GB machine each container picks a ~5.8 GB heap. The tests only
+	// write a handful of migrations, so cap the heap to keep all versions
+	// running concurrently within a small CI machine.
+	cassandraOpts = dktesting.Options{
+		Env: map[string]string{
+			"MAX_HEAP_SIZE": "512M",
+			"HEAP_NEWSIZE":  "100M",
+		},
+		PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute,
+	}
+	// Scylla sizes itself from the host too, but its image already passes
+	// --overprovisioned, so it needs no equivalent cap.
+	scyllaOpts = dktesting.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
 	// Supported versions:
 	// - https://cassandra.apache.org/_/download.html
 	// - https://docs.scylladb.com/stable/versioning/version-support.html
 	specs = []dktesting.ContainerSpec{
-		{ImageName: "cassandra:4.0", Options: opts},
-		{ImageName: "cassandra:4.1", Options: opts},
-		{ImageName: "cassandra:5.0", Options: opts},
-		{ImageName: "scylladb/scylla:2025.1", Options: opts},
-		{ImageName: "scylladb/scylla:2025.4", Options: opts},
-		{ImageName: "scylladb/scylla:2026.1", Options: opts},
+		{ImageName: "cassandra:4.0", Options: cassandraOpts},
+		{ImageName: "cassandra:4.1", Options: cassandraOpts},
+		{ImageName: "cassandra:5.0", Options: cassandraOpts},
+		{ImageName: "scylladb/scylla:2025.1", Options: scyllaOpts},
+		{ImageName: "scylladb/scylla:2025.4", Options: scyllaOpts},
+		{ImageName: "scylladb/scylla:2026.1", Options: scyllaOpts},
 	}
 )
 

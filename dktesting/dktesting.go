@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	tc "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/exec"
@@ -43,11 +42,18 @@ type Options struct {
 	// Cmd overrides the container command (and arguments).
 	Cmd []string
 	// PortRequired publishes all ports exposed by the image to random host
-	// ports. The mapped ports are then accessible via ContainerInfo.
+	// ports, which are then accessible via ContainerInfo.Port.
+	//
+	// This is already what testcontainers does whenever ExposedPorts is empty,
+	// so the field needs no handling of its own; it is retained because the
+	// driver tests set it and it documents their intent. Do not additionally
+	// set HostConfig.PublishAllPorts to implement it: that leaves Docker with
+	// two overlapping instructions to publish the same ports, which some
+	// daemons reject with "address already in use".
 	PortRequired bool
-	// ExposedPorts explicitly exposes the given container ports (e.g.
-	// "8091/tcp"), each mapped to a random host port. Use this when the image
-	// does not declare the required ports via EXPOSE.
+	// ExposedPorts publishes only the given container ports (e.g. "8091/tcp"),
+	// each mapped to a random host port. Set this to avoid publishing every
+	// port an image exposes when only a few are needed.
 	ExposedPorts []string
 	// ReadyFunc is polled (once per second) until it returns true or Timeout
 	// elapses. Each invocation receives a context bounded by ReadyTimeout.
@@ -152,13 +158,11 @@ func runContainer(t *testing.T, spec ContainerSpec,
 	if len(opts.Cmd) > 0 {
 		customizers = append(customizers, tc.WithCmd(opts.Cmd...))
 	}
+	// opts.PortRequired needs no customizer: leaving ExposedPorts unset already
+	// makes testcontainers publish every port the image exposes. See the field
+	// documentation on Options.
 	if len(opts.ExposedPorts) > 0 {
 		customizers = append(customizers, tc.WithExposedPorts(opts.ExposedPorts...))
-	}
-	if opts.PortRequired {
-		customizers = append(customizers, tc.WithHostConfigModifier(func(hc *container.HostConfig) {
-			hc.PublishAllPorts = true
-		}))
 	}
 	if opts.LogStderr {
 		customizers = append(customizers, tc.WithLogConsumers(&tc.StdoutLogConsumer{}))
@@ -167,8 +171,7 @@ func runContainer(t *testing.T, spec ContainerSpec,
 	startCtx, cancel := context.WithTimeout(ctx, opts.PullTimeout+opts.Timeout)
 	defer cancel()
 
-	ctr, err := tc.Run(startCtx, spec.ImageName, customizers...)
-	tc.CleanupContainer(t, ctr)
+	ctr, err := startContainer(t, startCtx, spec.ImageName, customizers)
 	if err != nil {
 		t.Fatalf("Failed to start container for image %s: %v", spec.ImageName, err)
 	}
@@ -183,6 +186,73 @@ func runContainer(t *testing.T, spec ContainerSpec,
 	}
 
 	testFunc(t, info)
+}
+
+// Bounds on retrying a container start that failed for a transient reason.
+const (
+	// maxStartAttempts is the total number of times a container start is tried.
+	maxStartAttempts = 3
+	// startRetryDelay is how long to wait between start attempts.
+	startRetryDelay = 2 * time.Second
+)
+
+// startContainer starts the image, retrying transient failures up to
+// maxStartAttempts times. Every attempt's container is registered for cleanup,
+// and a failed attempt is torn down immediately so it does not hold onto
+// published host ports while the next attempt runs.
+func startContainer(t *testing.T, ctx context.Context, image string,
+	customizers []tc.ContainerCustomizer) (tc.Container, error) {
+
+	var ctr tc.Container
+	var err error
+
+	for attempt := 1; attempt <= maxStartAttempts; attempt++ {
+		ctr, err = tc.Run(ctx, image, customizers...)
+		tc.CleanupContainer(t, ctr)
+		if err == nil || !transientStartErr(err) {
+			return ctr, err
+		}
+
+		if termErr := tc.TerminateContainer(ctr); termErr != nil {
+			t.Logf("Failed to terminate container for image %s after a failed "+
+				"start attempt: %v", image, termErr)
+		}
+
+		if attempt == maxStartAttempts {
+			break
+		}
+		t.Logf("Attempt %d of %d to start container for image %s failed with a "+
+			"transient error, retrying in %s: %v",
+			attempt, maxStartAttempts, image, startRetryDelay, err)
+
+		select {
+		case <-time.After(startRetryDelay):
+		case <-ctx.Done():
+			return nil, fmt.Errorf("%w (last start error: %v)", ctx.Err(), err)
+		}
+	}
+
+	return nil, fmt.Errorf("gave up after %d attempts: %w", maxStartAttempts, err)
+}
+
+// transientStartErr reports whether err is a container start failure worth
+// retrying. Docker allocates published host ports from the same ephemeral range
+// the kernel hands out to outbound sockets, so binding one occasionally races
+// with an unrelated process and fails even though a retry would succeed.
+func transientStartErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, transient := range []string{
+		"address already in use",
+		"port is already allocated",
+	} {
+		if strings.Contains(msg, transient) {
+			return true
+		}
+	}
+	return false
 }
 
 func newContainerInfo(ctx context.Context, ctr tc.Container) (ContainerInfo, error) {
