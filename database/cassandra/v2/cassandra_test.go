@@ -3,12 +3,10 @@ package v2
 import (
 	"context"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/dhui/dktest"
-	"github.com/golang-migrate/migrate/v4"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 
@@ -19,21 +17,35 @@ import (
 )
 
 var (
-	opts = dktest.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
+	// Cassandra derives its JVM heap from the amount of RAM it sees on the
+	// host, which over-commits badly once several containers run side by side:
+	// on a 12 GB machine each container picks a ~5.8 GB heap. The tests only
+	// write a handful of migrations, so cap the heap to keep all versions
+	// running concurrently within a small CI machine.
+	cassandraOpts = dktesting.Options{
+		Env: map[string]string{
+			"MAX_HEAP_SIZE": "512M",
+			"HEAP_NEWSIZE":  "100M",
+		},
+		PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute,
+	}
+	// Scylla sizes itself from the host too, but its image already passes
+	// --overprovisioned, so it needs no equivalent cap.
+	scyllaOpts = dktesting.Options{PortRequired: true, ReadyFunc: isReady, Timeout: 3 * time.Minute}
 	// Supported versions:
 	// - https://cassandra.apache.org/_/download.html
 	// - https://docs.scylladb.com/stable/versioning/version-support.html
 	specs = []dktesting.ContainerSpec{
-		{ImageName: "cassandra:4.0", Options: opts},
-		{ImageName: "cassandra:4.1", Options: opts},
-		{ImageName: "cassandra:5.0", Options: opts},
-		{ImageName: "scylladb/scylla:2025.1", Options: opts},
-		{ImageName: "scylladb/scylla:2025.4", Options: opts},
-		{ImageName: "scylladb/scylla:2026.1", Options: opts},
+		{ImageName: "cassandra:4.0", Options: cassandraOpts},
+		{ImageName: "cassandra:4.1", Options: cassandraOpts},
+		{ImageName: "cassandra:5.0", Options: cassandraOpts},
+		{ImageName: "scylladb/scylla:2025.1", Options: scyllaOpts},
+		{ImageName: "scylladb/scylla:2025.4", Options: scyllaOpts},
+		{ImageName: "scylladb/scylla:2026.1", Options: scyllaOpts},
 	}
 )
 
-func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
+func isReady(ctx context.Context, c dktesting.ContainerInfo) bool {
 	// Cassandra exposes 5 ports (7000, 7001, 7199, 9042 & 9160)
 	// We only need the port bound to 9042
 	ip, portStr, err := c.Port(9042)
@@ -63,19 +75,10 @@ func isReady(ctx context.Context, c dktest.ContainerInfo) bool {
 func Test(t *testing.T) {
 	t.Run("test", test)
 	t.Run("testMigrate", testMigrate)
-
-	t.Cleanup(func() {
-		for _, spec := range specs {
-			t.Log("Cleaning up ", spec.ImageName)
-			if err := spec.Cleanup(); err != nil {
-				t.Error("Error removing ", spec.ImageName, "error:", err)
-			}
-		}
-	})
 }
 
 func test(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ip, port, err := c.Port(9042)
 		if err != nil {
 			t.Fatal("Unable to get mapped port:", err)
@@ -96,7 +99,7 @@ func test(t *testing.T) {
 }
 
 func testMigrate(t *testing.T) {
-	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktest.ContainerInfo) {
+	dktesting.ParallelTest(t, specs, func(t *testing.T, c dktesting.ContainerInfo) {
 		ip, port, err := c.Port(9042)
 		if err != nil {
 			t.Fatal("Unable to get mapped port:", err)
