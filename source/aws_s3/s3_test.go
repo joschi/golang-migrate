@@ -3,7 +3,10 @@ package awss3
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"os"
+	"sort"
 	"strings"
 	"testing"
 
@@ -40,6 +43,65 @@ func Test(t *testing.T) {
 		t.Fatal(err)
 	}
 	st.Test(t, driver)
+}
+
+func TestLoadMigrationsPaginates(t *testing.T) {
+	// A single ListObjects response is capped at 1000 keys by S3. Spread the
+	// migrations across several pages (via pageSize) to ensure loadMigrations
+	// walks every page instead of silently stopping after the first one.
+	const migrationCount = 300
+	objects := make(map[string]string, migrationCount*2)
+	for i := 1; i <= migrationCount; i++ {
+		objects[fmt.Sprintf("prod/migrations/%d_foobar.up.sql", i)] = fmt.Sprintf("%d up", i)
+		objects[fmt.Sprintf("prod/migrations/%d_foobar.down.sql", i)] = fmt.Sprintf("%d down", i)
+	}
+	ctx := context.Background()
+	s3Client := fakeS3{
+		bucket:   "some-bucket",
+		pageSize: 50,
+		objects:  objects,
+	}
+	driver, err := WithInstance(ctx, &s3Client, &Config{
+		Bucket: "some-bucket",
+		Prefix: "prod/migrations/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := driver.First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, uint(1), first)
+
+	version := first
+	count := 1
+	for {
+		next, err := driver.Next(ctx, version)
+		if errors.Is(err, os.ErrNotExist) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		version = next
+		count++
+	}
+	assert.Equal(t, migrationCount, count, "every migration across all pages should be loaded")
+	assert.Equal(t, uint(migrationCount), version, "the highest-numbered migration should be loaded")
+
+	r, identifier, err := driver.ReadUp(ctx, uint(migrationCount))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = r.Close() }()
+	assert.Equal(t, "foobar", identifier)
+	body, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, fmt.Sprintf("%d up", migrationCount), string(body))
 }
 
 func TestParseURI(t *testing.T) {
@@ -91,8 +153,11 @@ func TestParseURI(t *testing.T) {
 }
 
 type fakeS3 struct {
-	bucket  string
-	objects map[string]string
+	bucket string
+	// pageSize caps how many keys each ListObjects response returns so tests
+	// can exercise the multi-page path; 0 means a single page.
+	pageSize int
+	objects  map[string]string
 }
 
 func (s *fakeS3) ListObjects(_ context.Context, input *s3.ListObjectsInput, _ ...func(*s3.Options)) (*s3.ListObjectsOutput, error) {
@@ -102,16 +167,43 @@ func (s *fakeS3) ListObjects(_ context.Context, input *s3.ListObjectsInput, _ ..
 	}
 	prefix := aws.ToString(input.Prefix)
 	delimiter := aws.ToString(input.Delimiter)
-	var output s3.ListObjectsOutput
+	var keys []string
 	for name := range s.objects {
 		if strings.HasPrefix(name, prefix) {
 			if delimiter == "" || !strings.Contains(strings.Replace(name, prefix, "", 1), delimiter) {
-				output.Contents = append(output.Contents, types.Object{
-					Key: aws.String(name),
-				})
+				keys = append(keys, name)
 			}
 		}
 	}
+	// S3 always returns keys in lexicographical order; marker-based
+	// pagination below depends on that ordering.
+	sort.Strings(keys)
+
+	start := 0
+	if marker := aws.ToString(input.Marker); marker != "" {
+		start = sort.SearchStrings(keys, marker)
+		if start < len(keys) && keys[start] == marker {
+			start++
+		}
+	}
+
+	pageSize := s.pageSize
+	if pageSize <= 0 {
+		pageSize = len(keys)
+	}
+	end := start + pageSize
+	truncated := end < len(keys)
+	if !truncated {
+		end = len(keys)
+	}
+
+	var output s3.ListObjectsOutput
+	for _, name := range keys[start:end] {
+		output.Contents = append(output.Contents, types.Object{
+			Key: aws.String(name),
+		})
+	}
+	output.IsTruncated = aws.Bool(truncated)
 	return &output, nil
 }
 
