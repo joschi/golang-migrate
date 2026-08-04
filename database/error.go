@@ -28,6 +28,51 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%v in line %v: %s (details: %v)", e.Err, e.Line, e.Query, e.OrigErr)
 }
 
+// RedactedError is an Error with the migration query removed. It is used when
+// an error is attached to telemetry, where the migration body must not appear:
+// migrations routinely contain data (backfills, seed rows) that should not be
+// shipped to an observability backend, and full migration files would bloat
+// span attributes.
+type RedactedError struct {
+	// Line is the line number the original error referred to.
+	Line uint
+
+	// Err is the human readable message of the original error.
+	Err string
+
+	// OrigErr is the underlying error.
+	OrigErr error
+}
+
+func (e RedactedError) Error() string {
+	if len(e.Err) == 0 {
+		return fmt.Sprintf("%v in line %v", e.OrigErr, e.Line)
+	}
+	return fmt.Sprintf("%v in line %v (details: %v)", e.Err, e.Line, e.OrigErr)
+}
+
+// Unwrap returns the underlying error so errors.Is and errors.As keep working
+// across redaction.
+func (e RedactedError) Unwrap() error { return e.OrigErr }
+
+// RedactError returns an error safe to attach to telemetry. If err is (or
+// wraps) an Error, the migration query is stripped; any other error is returned
+// unchanged. It never returns nil for a non-nil err.
+func RedactError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var dbErr Error
+	if !errors.As(err, &dbErr) {
+		return err
+	}
+	return RedactedError{
+		Line:    dbErr.Line,
+		Err:     dbErr.Err,
+		OrigErr: dbErr.OrigErr,
+	}
+}
+
 var (
 	quotedKVRegex  = regexp.MustCompile(`password='[^']*'`)
 	plainKVRegex   = regexp.MustCompile(`password=[^ ]*`)

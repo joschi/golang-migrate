@@ -20,6 +20,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
@@ -252,7 +253,7 @@ func (m *Mysql) Open(ctx context.Context, url string) (database.Driver, error) {
 	}
 
 	db, err := otelsql.Open("mysql", config.FormatDSN(),
-		otelsql.WithAttributes(semconv.DBSystemNameMySQL),
+		dbotel.Options(semconv.DBSystemNameMySQL)...,
 	)
 	if err != nil {
 		return nil, err

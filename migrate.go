@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/otelconv"
 	iurl "github.com/golang-migrate/migrate/v4/internal/url"
 	"github.com/golang-migrate/migrate/v4/source"
 )
@@ -90,15 +90,19 @@ type Migrate struct {
 	// but can be set per Migrate instance.
 	LockTimeout time.Duration
 
-	// otel holds the tracer and pre-created metric instruments.
+	// otel holds the tracer, configuration and pre-created metric instruments.
+	otelConfig      config
 	otelTracer      trace.Tracer
 	otelInstruments otelInstruments
 }
 
 // New returns a new Migrate instance from a source URL and a database URL.
 // The URL scheme is defined by each driver.
-func New(ctx context.Context, sourceURL, databaseURL string) (*Migrate, error) {
-	m := newCommon()
+func New(ctx context.Context, sourceURL, databaseURL string, opts ...Option) (retM *Migrate, retErr error) {
+	m := newCommon(opts)
+
+	ctx, span := m.startOpenSpan(ctx)
+	defer func() { m.endOpenSpan(span, retErr) }()
 
 	sourceName, err := iurl.SchemeFromURL(sourceURL)
 	if err != nil {
@@ -111,18 +115,19 @@ func New(ctx context.Context, sourceURL, databaseURL string) (*Migrate, error) {
 		return nil, fmt.Errorf("failed to parse scheme from database URL: %w", err)
 	}
 	m.databaseDriverName = databaseDriverName
+	span.SetAttributes(m.otelAttrs()...)
 
 	sourceDrv, err := source.Open(ctx, sourceURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open source, %q: %w", sourceURL, err)
 	}
-	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName)
+	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName, m.otelConfig.sourceOTelOptions()...)
 
 	databaseDrv, err := database.Open(ctx, databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", database.RedactPassword(err))
 	}
-	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName)
+	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
 
 	return m, nil
 }
@@ -131,8 +136,11 @@ func New(ctx context.Context, sourceURL, databaseURL string) (*Migrate, error) {
 // and an existing database instance. The source URL scheme is defined by each driver.
 // Use any string that can serve as an identifier during logging as databaseDriverName.
 // You are responsible for closing the underlying database client if necessary.
-func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriverName string, databaseInstance database.Driver) (*Migrate, error) {
-	m := newCommon()
+func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriverName string, databaseInstance database.Driver, opts ...Option) (retM *Migrate, retErr error) {
+	m := newCommon(opts)
+
+	ctx, span := m.startOpenSpan(ctx)
+	defer func() { m.endOpenSpan(span, retErr) }()
 
 	sourceName, err := iurl.SchemeFromURL(sourceURL)
 	if err != nil {
@@ -141,14 +149,15 @@ func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriv
 	m.sourceName = sourceName
 
 	m.databaseDriverName = databaseDriverName
+	span.SetAttributes(m.otelAttrs()...)
 
 	sourceDrv, err := source.Open(ctx, sourceURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open source, %q: %w", sourceURL, err)
 	}
-	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName)
+	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName, m.otelConfig.sourceOTelOptions()...)
 
-	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName)
+	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
 
 	return m, nil
 }
@@ -157,8 +166,11 @@ func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriv
 // and a database URL. The database URL scheme is defined by each driver.
 // Use any string that can serve as an identifier during logging as sourceName.
 // You are responsible for closing the underlying source client if necessary.
-func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstance source.Driver, databaseURL string) (*Migrate, error) {
-	m := newCommon()
+func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstance source.Driver, databaseURL string, opts ...Option) (retM *Migrate, retErr error) {
+	m := newCommon(opts)
+
+	ctx, span := m.startOpenSpan(ctx)
+	defer func() { m.endOpenSpan(span, retErr) }()
 
 	databaseDriverName, err := iurl.SchemeFromURL(databaseURL)
 	if err != nil {
@@ -167,14 +179,15 @@ func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstanc
 	m.databaseDriverName = databaseDriverName
 
 	m.sourceName = sourceName
+	span.SetAttributes(m.otelAttrs()...)
 
 	databaseDrv, err := database.Open(ctx, databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName)
+	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
 
-	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName)
+	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName, m.otelConfig.sourceOTelOptions()...)
 
 	return m, nil
 }
@@ -183,57 +196,77 @@ func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstanc
 // database instance. Use any string that can serve as an identifier during logging
 // as sourceName and databaseDriverName. You are responsible for closing down
 // the underlying source and database client if necessary.
-func NewWithInstance(ctx context.Context, sourceName string, sourceInstance source.Driver, databaseDriverName string, databaseInstance database.Driver) (*Migrate, error) {
-	m := newCommon()
+func NewWithInstance(ctx context.Context, sourceName string, sourceInstance source.Driver, databaseDriverName string, databaseInstance database.Driver, opts ...Option) (*Migrate, error) {
+	m := newCommon(opts)
 
 	m.sourceName = sourceName
 	m.databaseDriverName = databaseDriverName
 
-	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName)
-	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName)
+	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName, m.otelConfig.sourceOTelOptions()...)
+	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
 
 	return m, nil
 }
 
-func newCommon() *Migrate {
-	meter := newMeter()
+func newCommon(opts []Option) *Migrate {
+	cfg := newConfig(opts)
 	return &Migrate{
 		GracefulStop:       make(chan bool, 1),
 		PrefetchMigrations: DefaultPrefetchMigrations,
 		LockTimeout:        DefaultLockTimeout,
 		isLockedMu:         &sync.Mutex{},
-		otelTracer:         newTracer(),
-		otelInstruments:    newOtelInstruments(meter),
+		otelConfig:         cfg,
+		otelTracer:         newTracer(cfg),
+		otelInstruments:    newOtelInstruments(newMeter(cfg)),
 	}
+}
+
+// startOpenSpan starts the span covering construction of a Migrate instance.
+// Without it, work performed by a driver's Open (creating the migrations table,
+// listing the source) would produce unparented root spans.
+func (m *Migrate) startOpenSpan(ctx context.Context) (context.Context, trace.Span) {
+	return m.otelTracer.Start(ctx, "migrate.open", trace.WithSpanKind(trace.SpanKindInternal))
+}
+
+func (m *Migrate) endOpenSpan(span trace.Span, err error) {
+	otelSpanSetError(span, err)
+	span.End()
 }
 
 // otelAttrs returns the common OTel attributes shared by all spans and metrics.
 func (m *Migrate) otelAttrs() []attribute.KeyValue {
 	return []attribute.KeyValue{
-		semconv.DBSystemNameKey.String(m.databaseDriverName),
+		semconv.DBSystemNameKey.String(otelconv.DBSystemName(m.databaseDriverName)),
 		attribute.String("migrate.source", m.sourceName),
 	}
 }
 
 // otelSpanSetError records the error on the span unless it is a benign sentinel
 // value (ErrNoChange, ErrNilVersion) that does not indicate a system failure.
+// The migration body is stripped from the recorded error, so that neither the
+// status description nor the exception event leaks migration SQL.
 func otelSpanSetError(span trace.Span, err error) {
 	if err == nil || errors.Is(err, ErrNoChange) || errors.Is(err, ErrNilVersion) {
 		return
 	}
-	span.RecordError(err)
-	// Avoid leaking migration SQL (from database.Error.Query) into traces.
-	// Record only the underlying cause when available.
-	msg := err.Error()
-	var dbErr database.Error
-	if errors.As(err, &dbErr) && dbErr.OrigErr != nil {
-		msg = dbErr.OrigErr.Error()
-	}
-	span.SetStatus(codes.Error, msg)
+	database.RecordSpanError(span, err)
+}
+
+// failureAttrs returns the metric attributes for a failed migration, adding the
+// stage the failure occurred in so that a broken migration can be told apart
+// from failed version bookkeeping.
+func failureAttrs(base []attribute.KeyValue, stage string) metric.MeasurementOption {
+	return metric.WithAttributes(append(base, attribute.String("migrate.stage", stage))...)
 }
 
 // Close closes the source and the database.
 func (m *Migrate) Close(ctx context.Context) (source error, database error) {
+	ctx, span := m.otelTracer.Start(ctx, "migrate.close",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(m.otelAttrs()...),
+	)
+	defer span.End()
+
 	databaseSrvClose := make(chan error)
 	sourceSrvClose := make(chan error)
 
@@ -452,11 +485,7 @@ func (m *Migrate) Run(ctx context.Context, migration ...*Migration) (retErr erro
 			}
 
 			ret <- migr
-			go func(migr *Migration) {
-				if err := migr.Buffer(); err != nil {
-					m.logErr(err)
-				}
-			}(migr)
+			go m.bufferMigration(ctx, migr)
 		}
 	}()
 
@@ -493,7 +522,16 @@ func (m *Migrate) Force(ctx context.Context, version int) (retErr error) {
 
 // Version returns the currently active migration version.
 // If no migration has been applied, yet, it will return ErrNilVersion.
-func (m *Migrate) Version(ctx context.Context) (version uint, dirty bool, err error) {
+func (m *Migrate) Version(ctx context.Context) (version uint, dirty bool, retErr error) {
+	ctx, span := m.otelTracer.Start(ctx, "migrate.version",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(m.otelAttrs()...),
+	)
+	defer func() {
+		otelSpanSetError(span, retErr)
+		span.End()
+	}()
+
 	v, d, err := m.databaseDrv.Version(ctx)
 	if err != nil {
 		return 0, false, err
@@ -556,11 +594,7 @@ func (m *Migrate) read(ctx context.Context, from int, to int, ret chan<- interfa
 			}
 
 			ret <- migr
-			go func() {
-				if err := migr.Buffer(); err != nil {
-					m.logErr(err)
-				}
-			}()
+			go m.bufferMigration(ctx, migr)
 
 			from = int(firstVersion)
 		}
@@ -584,11 +618,7 @@ func (m *Migrate) read(ctx context.Context, from int, to int, ret chan<- interfa
 			}
 
 			ret <- migr
-			go func() {
-				if err := migr.Buffer(); err != nil {
-					m.logErr(err)
-				}
-			}()
+			go m.bufferMigration(ctx, migr)
 
 			from = int(next)
 		}
@@ -610,11 +640,7 @@ func (m *Migrate) read(ctx context.Context, from int, to int, ret chan<- interfa
 					return
 				}
 				ret <- migr
-				go func() {
-					if err := migr.Buffer(); err != nil {
-						m.logErr(err)
-					}
-				}()
+				go m.bufferMigration(ctx, migr)
 
 				return
 
@@ -630,11 +656,7 @@ func (m *Migrate) read(ctx context.Context, from int, to int, ret chan<- interfa
 			}
 
 			ret <- migr
-			go func() {
-				if err := migr.Buffer(); err != nil {
-					m.logErr(err)
-				}
-			}()
+			go m.bufferMigration(ctx, migr)
 
 			from = int(prev)
 		}
@@ -687,11 +709,7 @@ func (m *Migrate) readUp(ctx context.Context, from int, limit int, ret chan<- in
 			}
 
 			ret <- migr
-			go func() {
-				if err := migr.Buffer(); err != nil {
-					m.logErr(err)
-				}
-			}()
+			go m.bufferMigration(ctx, migr)
 			from = int(firstVersion)
 			count++
 			continue
@@ -735,11 +753,7 @@ func (m *Migrate) readUp(ctx context.Context, from int, limit int, ret chan<- in
 		}
 
 		ret <- migr
-		go func() {
-			if err := migr.Buffer(); err != nil {
-				m.logErr(err)
-			}
-		}()
+		go m.bufferMigration(ctx, migr)
 		from = int(next)
 		count++
 	}
@@ -800,11 +814,7 @@ func (m *Migrate) readDown(ctx context.Context, from int, limit int, ret chan<- 
 					return
 				}
 				ret <- migr
-				go func() {
-					if err := migr.Buffer(); err != nil {
-						m.logErr(err)
-					}
-				}()
+				go m.bufferMigration(ctx, migr)
 				count++
 			}
 
@@ -825,11 +835,7 @@ func (m *Migrate) readDown(ctx context.Context, from int, limit int, ret chan<- 
 		}
 
 		ret <- migr
-		go func() {
-			if err := migr.Buffer(); err != nil {
-				m.logErr(err)
-			}
-		}()
+		go m.bufferMigration(ctx, migr)
 		from = int(prev)
 		count++
 	}
@@ -865,9 +871,10 @@ func (m *Migrate) runMigrations(ctx context.Context, ret <-chan interface{}) err
 				attribute.String("migrate.direction", direction),
 				attribute.String("migrate.identifier", migr.Identifier),
 			)
-			metricAttrs := metric.WithAttributes(append(m.otelAttrs(),
+			baseAttrs := append(m.otelAttrs(),
 				attribute.String("migrate.direction", direction),
-			)...)
+			)
+			metricAttrs := metric.WithAttributes(baseAttrs...)
 			childCtx, childSpan := m.otelTracer.Start(ctx, "migrate.run_migration",
 				trace.WithSpanKind(trace.SpanKindInternal),
 				trace.WithAttributes(migrAttrs...),
@@ -875,9 +882,8 @@ func (m *Migrate) runMigrations(ctx context.Context, ret <-chan interface{}) err
 
 			// set version with dirty state
 			if err := m.databaseDrv.SetVersion(childCtx, migr.TargetVersion, true); err != nil {
-				m.otelInstruments.migrationsFailed.Add(childCtx, 1, metricAttrs)
-				childSpan.RecordError(err)
-				childSpan.SetStatus(codes.Error, err.Error())
+				m.otelInstruments.migrationsFailed.Add(childCtx, 1, failureAttrs(baseAttrs, "set_version_dirty"))
+				database.RecordSpanError(childSpan, err)
 				childSpan.End()
 				return err
 			}
@@ -888,9 +894,8 @@ func (m *Migrate) runMigrations(ctx context.Context, ret <-chan interface{}) err
 				if err := m.databaseDrv.Run(childCtx, migr.BufferedBody); err != nil {
 					dur := time.Since(runStart).Seconds()
 					m.otelInstruments.migrationRunDuration.Record(childCtx, dur, metricAttrs)
-					m.otelInstruments.migrationsFailed.Add(childCtx, 1, metricAttrs)
-					childSpan.RecordError(err)
-					childSpan.SetStatus(codes.Error, err.Error())
+					m.otelInstruments.migrationsFailed.Add(childCtx, 1, failureAttrs(baseAttrs, "run"))
+					database.RecordSpanError(childSpan, err)
 					childSpan.End()
 					return err
 				}
@@ -900,15 +905,13 @@ func (m *Migrate) runMigrations(ctx context.Context, ret <-chan interface{}) err
 
 			// set clean state
 			if err := m.databaseDrv.SetVersion(childCtx, migr.TargetVersion, false); err != nil {
-				m.otelInstruments.migrationsFailed.Add(childCtx, 1, metricAttrs)
-				childSpan.RecordError(err)
-				childSpan.SetStatus(codes.Error, err.Error())
+				m.otelInstruments.migrationsFailed.Add(childCtx, 1, failureAttrs(baseAttrs, "set_version_clean"))
+				database.RecordSpanError(childSpan, err)
 				childSpan.End()
 				return err
 			}
 
 			m.otelInstruments.migrationsApplied.Add(childCtx, 1, metricAttrs)
-			childSpan.SetStatus(codes.Ok, "")
 			childSpan.End()
 
 			endTime := time.Now()
@@ -1085,11 +1088,56 @@ func (m *Migrate) lock(ctx context.Context) error {
 	}()
 
 	// wait until we either receive ErrLockTimeout or error from Lock operation
+	start := time.Now()
 	err := <-errchan
+	m.otelInstruments.lockDuration.Record(ctx, time.Since(start).Seconds(),
+		metric.WithAttributes(m.otelAttrs()...))
 	if err == nil {
 		m.isLocked = true
+		return nil
 	}
+
+	// A failed lock is the most common operational failure, so record why.
+	errType := "_OTHER"
+	switch {
+	case errors.Is(err, ErrLockTimeout):
+		errType = "timeout"
+	case errors.Is(err, ErrLocked), errors.Is(err, database.ErrLocked):
+		errType = "locked"
+	}
+	m.otelInstruments.lockFailures.Add(ctx, 1, metric.WithAttributes(
+		append(m.otelAttrs(), semconv.ErrorTypeKey.String(errType))...))
 	return err
+}
+
+// bufferMigration reads a migration body from the source, emitting a span and
+// metrics for it. The read is where remote sources (github, gitlab, s3, gcs)
+// actually spend their time: source.read_up only covers obtaining the reader,
+// so without this the download would be untraced.
+func (m *Migrate) bufferMigration(ctx context.Context, migr *Migration) {
+	ctx, span := m.otelTracer.Start(ctx, "migrate.buffer_migration",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(append(m.otelAttrs(),
+			attribute.Int64("migrate.version", int64(migr.Version)),
+			attribute.String("migrate.identifier", migr.Identifier),
+		)...),
+	)
+	defer span.End()
+
+	start := time.Now()
+	err := migr.Buffer()
+	attrs := metric.WithAttributes(m.otelAttrs()...)
+	m.otelInstruments.migrationBufferDuration.Record(ctx, time.Since(start).Seconds(), attrs)
+
+	if err != nil {
+		otelSpanSetError(span, err)
+		m.logErr(err)
+		return
+	}
+	if migr.BytesRead > 0 {
+		m.otelInstruments.migrationBytesRead.Add(ctx, migr.BytesRead, attrs)
+		span.SetAttributes(attribute.Int64("migrate.bytes_read", migr.BytesRead))
+	}
 }
 
 // unlock is a thread safe helper function to unlock the database.

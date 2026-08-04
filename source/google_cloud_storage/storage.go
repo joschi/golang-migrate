@@ -11,10 +11,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang-migrate/migrate/v4/source"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
-	"google.golang.org/grpc"
 )
 
 func init() {
@@ -33,7 +30,12 @@ func (g *gcs) Open(ctx context.Context, folder string) (source.Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := storage.NewClient(ctx, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
+	// No OpenTelemetry wiring is needed here: storage.NewClient builds an
+	// HTTP/JSON client, and cloud.google.com/go/storage together with
+	// google-api-go-client instrument it themselves (an otelhttp transport plus
+	// their own client spans). A gRPC stats handler passed here would be
+	// silently ignored, since NewClient never dials gRPC.
+	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}

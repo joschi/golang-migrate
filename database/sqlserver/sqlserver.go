@@ -15,6 +15,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	mssql "github.com/microsoft/go-mssqldb" // mssql support
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
@@ -159,12 +160,12 @@ func (ss *SQLServer) Open(ctx context.Context, url string) (database.Driver, err
 		}
 
 		db = otelsql.OpenDB(connector,
-			otelsql.WithAttributes(semconv.DBSystemNameMicrosoftSQLServer),
+			dbotel.Options(semconv.DBSystemNameMicrosoftSQLServer)...,
 		)
 
 	} else {
 		db, err = otelsql.Open("sqlserver", filteredURL,
-			otelsql.WithAttributes(semconv.DBSystemNameMicrosoftSQLServer),
+			dbotel.Options(semconv.DBSystemNameMicrosoftSQLServer)...,
 		)
 		if err != nil {
 			return nil, err

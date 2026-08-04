@@ -4,6 +4,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/otelconv"
+	"github.com/golang-migrate/migrate/v4/source"
 )
 
 const (
@@ -11,6 +15,64 @@ const (
 	// the tracer and meter.
 	instrumentationName = "github.com/golang-migrate/migrate/v4"
 )
+
+// Option configures a Migrate instance.
+type Option interface {
+	apply(*config)
+}
+
+type config struct {
+	tracerProvider trace.TracerProvider
+	meterProvider  metric.MeterProvider
+}
+
+type optionFunc func(*config)
+
+func (f optionFunc) apply(c *config) { f(c) }
+
+// WithTracerProvider sets the TracerProvider used for tracing, including the
+// database and source driver wrappers created internally. When unset, the
+// global TracerProvider is used.
+func WithTracerProvider(tp trace.TracerProvider) Option {
+	return optionFunc(func(c *config) {
+		if tp != nil {
+			c.tracerProvider = tp
+		}
+	})
+}
+
+// WithMeterProvider sets the MeterProvider used for metrics. When unset, the
+// global MeterProvider is used.
+func WithMeterProvider(mp metric.MeterProvider) Option {
+	return optionFunc(func(c *config) {
+		if mp != nil {
+			c.meterProvider = mp
+		}
+	})
+}
+
+func newConfig(opts []Option) config {
+	cfg := config{
+		tracerProvider: otel.GetTracerProvider(),
+		meterProvider:  otel.GetMeterProvider(),
+	}
+	for _, opt := range opts {
+		opt.apply(&cfg)
+	}
+	return cfg
+}
+
+// databaseOTelOptions returns the options to pass to database.NewOTelDriver so
+// that the wrapper uses the same TracerProvider as the Migrate instance.
+func (c config) databaseOTelOptions() []database.OTelOption {
+	return []database.OTelOption{database.WithTracerProvider(c.tracerProvider)}
+}
+
+// sourceOTelOptions returns the options to pass to source.NewOTelDriver so that
+// the wrapper uses the same TracerProvider as the Migrate instance.
+func (c config) sourceOTelOptions() []source.OTelOption {
+	return []source.OTelOption{source.WithTracerProvider(c.tracerProvider)}
+}
 
 // otelInstruments holds pre-created OTel metric instruments for a Migrate instance.
 type otelInstruments struct {
@@ -22,6 +84,19 @@ type otelInstruments struct {
 
 	// migrationRunDuration records the execution duration of databaseDrv.Run per migration.
 	migrationRunDuration metric.Float64Histogram
+
+	// lockDuration records how long acquiring the database lock took.
+	lockDuration metric.Float64Histogram
+
+	// lockFailures counts failed lock acquisitions, including timeouts.
+	lockFailures metric.Int64Counter
+
+	// migrationBufferDuration records how long reading a migration body from
+	// the source took.
+	migrationBufferDuration metric.Float64Histogram
+
+	// migrationBytesRead counts bytes read from the migration source.
+	migrationBytesRead metric.Int64Counter
 }
 
 // newOtelInstruments creates metric instruments from the provided meter.
@@ -57,19 +132,69 @@ func newOtelInstruments(meter metric.Meter) otelInstruments {
 		otel.Handle(err)
 	}
 
+	lockDuration, err := meter.Float64Histogram(
+		"migrate.lock.duration",
+		metric.WithDescription("Duration of database lock acquisition."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+
+	lockFailures, err := meter.Int64Counter(
+		"migrate.lock.failures",
+		metric.WithDescription("Number of failed database lock acquisitions, including timeouts."),
+		metric.WithUnit("{failure}"),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+
+	bufferDuration, err := meter.Float64Histogram(
+		"migrate.migration.buffer.duration",
+		metric.WithDescription("Duration of reading a migration body from the source."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+
+	bytesRead, err := meter.Int64Counter(
+		"migrate.migration.source.read",
+		metric.WithDescription("Bytes read from the migration source."),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+
 	return otelInstruments{
-		migrationsApplied:    applied,
-		migrationsFailed:     failed,
-		migrationRunDuration: duration,
+		migrationsApplied:       applied,
+		migrationsFailed:        failed,
+		migrationRunDuration:    duration,
+		lockDuration:            lockDuration,
+		lockFailures:            lockFailures,
+		migrationBufferDuration: bufferDuration,
+		migrationBytesRead:      bytesRead,
 	}
 }
 
-// newTracer returns a tracer from the global TracerProvider.
-func newTracer() trace.Tracer {
-	return otel.GetTracerProvider().Tracer(instrumentationName)
+// newTracer returns a tracer from cfg's TracerProvider.
+func newTracer(cfg config) trace.Tracer {
+	opts := []trace.TracerOption{trace.WithSchemaURL(otelconv.SchemaURL)}
+	if v := otelconv.Version(); v != "" {
+		opts = append(opts, trace.WithInstrumentationVersion(v))
+	}
+	return cfg.tracerProvider.Tracer(instrumentationName, opts...)
 }
 
-// newMeter returns a meter from the global MeterProvider.
-func newMeter() metric.Meter {
-	return otel.GetMeterProvider().Meter(instrumentationName)
+// newMeter returns a meter from cfg's MeterProvider.
+func newMeter(cfg config) metric.Meter {
+	opts := []metric.MeterOption{metric.WithSchemaURL(otelconv.SchemaURL)}
+	if v := otelconv.Version(); v != "" {
+		opts = append(opts, metric.WithInstrumentationVersion(v))
+	}
+	return cfg.meterProvider.Meter(instrumentationName, opts...)
 }

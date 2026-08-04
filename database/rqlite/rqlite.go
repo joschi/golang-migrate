@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/rqlite/gorqlite"
@@ -115,7 +117,12 @@ func (r *Rqlite) Open(ctx context.Context, url string) (database.Driver, error) 
 	}
 	r.config = config
 
-	r.db, err = gorqlite.Open(dburl.String())
+	// rqlite speaks HTTP, so instrument the transport. Copy gorqlite's default
+	// client to keep its timeout, and wrap rather than replace the transport.
+	httpClient := *gorqlite.DefaultHTTPClient
+	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
+
+	r.db, err = gorqlite.OpenWithClient(dburl.String(), &httpClient)
 	if err != nil {
 		return nil, err
 	}
