@@ -39,6 +39,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal("expected first append to succeed")
 	}
 
+	m.ensureIndex()
 	if len(m.index) != 1 {
 		t.Fatalf("expected index length 1, got %d", len(m.index))
 	}
@@ -65,8 +66,57 @@ func TestAppend(t *testing.T) {
 		t.Fatal("expected down migration to succeed")
 	}
 
+	m.ensureIndex()
 	if len(m.index) != 1 {
 		t.Fatalf("expected only one version in index, got %d", len(m.index))
+	}
+}
+
+func TestInterleavedAppendReads(t *testing.T) {
+	ctx := context.Background()
+	m := NewMigrations()
+
+	if !m.Append(&Migration{Version: 10, Direction: Up}) {
+		t.Fatal("expected append version 10 up to succeed")
+	}
+	if !m.Append(&Migration{Version: 10, Direction: Down}) {
+		t.Fatal("expected append version 10 down to succeed")
+	}
+	if !m.Append(&Migration{Version: 30, Direction: Up}) {
+		t.Fatal("expected append version 30 up to succeed")
+	}
+
+	if v, ok := m.First(ctx); !ok || v != 10 {
+		t.Fatalf("expected first version 10, got %v, %v", v, ok)
+	}
+	if v, ok := m.Next(ctx, 10); !ok || v != 30 {
+		t.Fatalf("expected next version after 10 to be 30, got %v, %v", v, ok)
+	}
+	if v, ok := m.Prev(ctx, 30); !ok || v != 10 {
+		t.Fatalf("expected previous version before 30 to be 10, got %v, %v", v, ok)
+	}
+
+	if !m.Append(&Migration{Version: 20, Direction: Up}) {
+		t.Fatal("expected append version 20 up to succeed")
+	}
+	if !m.Append(&Migration{Version: 20, Direction: Down}) {
+		t.Fatal("expected append version 20 down to succeed")
+	}
+	if !m.Append(&Migration{Version: 5, Direction: Up}) {
+		t.Fatal("expected append version 5 up to succeed")
+	}
+
+	if v, ok := m.First(ctx); !ok || v != 5 {
+		t.Fatalf("expected first version 5, got %v, %v", v, ok)
+	}
+	if v, ok := m.Next(ctx, 10); !ok || v != 20 {
+		t.Fatalf("expected next version after 10 to be 20, got %v, %v", v, ok)
+	}
+	if v, ok := m.Next(ctx, 20); !ok || v != 30 {
+		t.Fatalf("expected next version after 20 to be 30, got %v, %v", v, ok)
+	}
+	if v, ok := m.Prev(ctx, 20); !ok || v != 10 {
+		t.Fatalf("expected previous version before 20 to be 10, got %v, %v", v, ok)
 	}
 }
 
@@ -78,6 +128,8 @@ func TestBuildIndex(t *testing.T) {
 	m.Append(&Migration{Version: 2, Direction: Up})
 
 	expected := []uint{1, 2, 3}
+
+	m.ensureIndex()
 
 	if len(m.index) != len(expected) {
 		t.Fatalf("expected %d versions, got %d", len(expected), len(m.index))
@@ -230,5 +282,36 @@ func TestFindPos(t *testing.T) {
 
 	if p := m.findPos(3); p != 2 {
 		t.Errorf("expected 2, got %v", p)
+	}
+}
+
+func BenchmarkAppend100(b *testing.B) {
+	benchmarkAppend(b, 100)
+}
+
+func BenchmarkAppend1000(b *testing.B) {
+	benchmarkAppend(b, 1000)
+}
+
+func BenchmarkAppend5000(b *testing.B) {
+	benchmarkAppend(b, 5000)
+}
+
+func benchmarkAppend(b *testing.B, n int) {
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		m := NewMigrations()
+		for version := 1; version <= n; version++ {
+			v := uint(version)
+			if !m.Append(&Migration{Version: v, Direction: Up}) {
+				b.Fatalf("expected append version %d up to succeed", version)
+			}
+			if !m.Append(&Migration{Version: v, Direction: Down}) {
+				b.Fatalf("expected append version %d down to succeed", version)
+			}
+		}
+		if _, ok := m.First(ctx); !ok {
+			b.Fatal("expected first version")
+		}
 	}
 }
