@@ -101,6 +101,28 @@ func hasHistogramData(rm metricdata.ResourceMetrics, name string) bool {
 	return false
 }
 
+// counterHasAttr reports whether any data point of the named Int64 counter
+// carries key=value.
+func counterHasAttr(rm metricdata.ResourceMetrics, name string, key attribute.Key, value string) bool {
+	for _, sm := range rm.ScopeMetrics {
+		for _, metric := range sm.Metrics {
+			if metric.Name != name {
+				continue
+			}
+			data, ok := metric.Data.(metricdata.Sum[int64])
+			if !ok {
+				return false
+			}
+			for _, dp := range data.DataPoints {
+				if v, present := dp.Attributes.Value(key); present && v.AsString() == value {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // attrVal finds an attribute value by key in a span's attribute set.
 func attrVal(span sdktrace.ReadOnlySpan, key string) (attribute.Value, bool) {
 	for _, kv := range span.Attributes() {
@@ -317,7 +339,7 @@ func setupOtelTopologyTest(t *testing.T) (m *Migrate, exp *tracetest.InMemoryExp
 	return m, exp
 }
 
-// TestOtelTraceTopology verifies that db.set_version and db.run spans are
+// TestOtelTraceTopology verifies that set_version and run spans are
 // children of the migrate.run_migration span, and that migrate.run_migration
 // is a child of migrate.up.
 func TestOtelTraceTopology(t *testing.T) {
@@ -372,15 +394,15 @@ func TestOtelTraceTopology(t *testing.T) {
 			}
 		}
 
-		// All run_migration spans emit at least two db.set_version calls
-		// (dirty=true before, dirty=false after). db.run is only present
+		// All run_migration spans emit at least two set_version calls
+		// (dirty=true before, dirty=false after). The run span is only present
 		// when the migration has a body (version 5 has no Up body).
-		assert.Contains(t, childNames, "db.set_version",
-			"db.set_version must be a child of migrate.run_migration")
+		assert.Contains(t, childNames, "set_version",
+			"set_version must be a child of migrate.run_migration")
 
-		// Track how many have db.run to assert at least one does.
+		// Track how many have a run span to assert at least one does.
 		for _, n := range childNames {
-			if n == "db.run" {
+			if n == "run" {
 				foundRunMigrWithDBRun++
 				break
 			}
@@ -388,5 +410,5 @@ func TestOtelTraceTopology(t *testing.T) {
 	}
 	require.Greater(t, foundRunMigr, 0, "at least one migrate.run_migration span expected")
 	assert.Greater(t, foundRunMigrWithDBRun, 0,
-		"at least one migrate.run_migration must have db.run as a child")
+		"at least one migrate.run_migration must have run as a child")
 }

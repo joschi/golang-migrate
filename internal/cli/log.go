@@ -36,6 +36,8 @@ func (l *Log) Verbose() bool {
 
 func (l *Log) fatal(args ...interface{}) {
 	l.Println(args...)
+	// Flush telemetry: os.Exit skips deferred shutdown in Main.
+	otelShutdown()
 	os.Exit(1)
 }
 

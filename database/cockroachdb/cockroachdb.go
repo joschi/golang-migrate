@@ -15,6 +15,7 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	"github.com/lib/pq"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
@@ -109,7 +110,7 @@ func (c *CockroachDb) Open(ctx context.Context, url string) (database.Driver, er
 	connectString := re.ReplaceAllString(migrate.FilterCustomQuery(purl).String(), "postgres")
 
 	db, err := otelsql.Open("postgres", connectString,
-		otelsql.WithAttributes(semconv.DBSystemNameCockroachDB),
+		dbotel.Options(semconv.DBSystemNameCockroachDB)...,
 	)
 	if err != nil {
 		return nil, err
@@ -362,4 +363,14 @@ func (c *CockroachDb) ensureLockTable(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+var _ database.MigrationsTabler = (*CockroachDb)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (c *CockroachDb) MigrationsTable() string {
+	if c.config == nil {
+		return ""
+	}
+	return c.config.MigrationsTable
 }

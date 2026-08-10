@@ -51,6 +51,10 @@ func newFlagSetWithHelp(name string) (*flag.FlagSet, *bool) {
 // set main log
 var log = &Log{}
 
+// otelShutdown flushes telemetry. It is replaced by Main once the OpenTelemetry
+// SDK has been set up, and is also invoked from the log.fatal path.
+var otelShutdown = func() {}
+
 func printUsageAndExit() {
 	flag.Usage()
 
@@ -120,10 +124,16 @@ Database drivers: `+strings.Join(database.List(), ", ")+"\n", createUsage, gotoU
 		*sourcePtr = fmt.Sprintf("file://%v", *pathPtr)
 	}
 
+	// Set up OpenTelemetry before anything is instrumented. This is a no-op
+	// unless telemetry export was explicitly requested via OTEL_* environment
+	// variables; see setupOTel.
+	ctx := context.Background()
+	otelShutdown = setupOTel(ctx, version)
+	defer otelShutdown()
+
 	// initialize migrate
 	// don't catch migraterErr here and let each command decide
 	// how it wants to handle the error
-	ctx := context.Background()
 	migrater, migraterErr := migrate.New(ctx, *sourcePtr, *databasePtr)
 	defer func() {
 		if migraterErr == nil {

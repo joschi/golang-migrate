@@ -19,6 +19,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/multistmt"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	"github.com/lib/pq"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
@@ -157,7 +158,7 @@ func (p *Postgres) Open(ctx context.Context, url string) (database.Driver, error
 	}
 
 	db, err := otelsql.Open("postgres", migrate.FilterCustomQuery(purl).String(),
-		otelsql.WithAttributes(semconv.DBSystemNamePostgreSQL),
+		dbotel.Options(semconv.DBSystemNamePostgreSQL)...,
 	)
 	if err != nil {
 		return nil, err
@@ -487,4 +488,14 @@ func (p *Postgres) ensureVersionTable(ctx context.Context) (err error) {
 	}
 
 	return nil
+}
+
+var _ database.MigrationsTabler = (*Postgres)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (p *Postgres) MigrationsTable() string {
+	if p.config == nil {
+		return ""
+	}
+	return p.config.MigrationsTable
 }

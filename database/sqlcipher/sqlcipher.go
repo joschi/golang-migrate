@@ -16,6 +16,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	_ "github.com/mutecomm/go-sqlcipher/v4"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
@@ -151,7 +152,7 @@ func (m *Sqlite) Open(ctx context.Context, url string) (database.Driver, error) 
 	}
 	dbfile := strings.Replace(migrate.FilterCustomQuery(purl).String(), "sqlite3://", "", 1)
 	db, err := otelsql.Open(wrappedSQLCipherDriverName(), dbfile,
-		otelsql.WithAttributes(semconv.DBSystemNameSQLite),
+		dbotel.Options(semconv.DBSystemNameSQLite)...,
 	)
 	if err != nil {
 		return nil, err
@@ -320,4 +321,14 @@ func (m *Sqlite) Version(ctx context.Context) (version int, dirty bool, err erro
 		return database.NilVersion, false, nil
 	}
 	return version, dirty, nil
+}
+
+var _ database.MigrationsTabler = (*Sqlite)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (s *Sqlite) MigrationsTable() string {
+	if s.config == nil {
+		return ""
+	}
+	return s.config.MigrationsTable
 }

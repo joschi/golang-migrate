@@ -155,10 +155,12 @@ Go to [getting started](GETTING_STARTED.md)
 
 ## OpenTelemetry
 
-migrate emits [OpenTelemetry](https://opentelemetry.io) traces and metrics through the OTel **API** only — it does **not** initialize an SDK, configure exporters, or set up resources. This means:
+migrate emits [OpenTelemetry](https://opentelemetry.io) traces and metrics through the OTel **API** only — the library does **not** initialize an SDK, configure exporters, or set up resources. This means:
 
 - **Zero overhead** when no OTel SDK is configured (global no-op providers are used).
-- **Automatic telemetry** when the host application configures OTel global providers (e.g. via `go.opentelemetry.io/otel/sdk`).
+- **Automatic telemetry** when the host application configures OTel global providers (e.g. via `go.opentelemetry.io/otel/sdk`), or when a provider is passed explicitly with `migrate.WithTracerProvider` / `migrate.WithMeterProvider`.
+
+The `migrate` CLI is different: it *can* set up an SDK, but only when asked. See [CLI](#cli) below.
 
 ### Signals
 
@@ -168,23 +170,49 @@ migrate emits [OpenTelemetry](https://opentelemetry.io) traces and metrics throu
 
 | Span name | Emitted by |
 |-----------|-----------|
+| `migrate.open` | `New` / `NewWithDatabaseInstance` / `NewWithSourceInstance` |
 | `migrate.up` | `Up` / `Steps` (positive) |
 | `migrate.down` | `Down` / `Steps` (negative) |
 | `migrate.migrate` | `Migrate` |
 | `migrate.force` | `Force` |
 | `migrate.drop` | `Drop` |
+| `migrate.version` | `Version` |
+| `migrate.close` | `Close` |
 | `migrate.run_migration` | Per-migration child of the above |
+| `migrate.buffer_migration` | Per-migration read of the body from the source |
+
+`migrate.open` exists so that work a driver performs while opening — creating the
+migrations table, listing the source — is attached to a span instead of starting
+its own trace. `migrate.buffer_migration` covers the actual read of a migration
+body, which happens after `source.read_up` returns the reader; for remote
+sources this is where the download time is.
 
 #### Database driver spans (SpanKind: CLIENT)
 
+Span names follow the database semantic conventions: `{db.operation.name} {target}`,
+falling back to `{db.operation.name}` when there is no target. The target is the
+migrations table, so with the default table the names are as shown; a driver
+configured with `x-migrations-table=custom` reports `set_version custom`.
+
 | Span name | Method | Key attributes |
 |-----------|--------|----------------|
-| `db.lock` | Lock | `db.system.name` |
-| `db.unlock` | Unlock | `db.system.name` |
-| `db.run` | Run | `db.system.name` |
-| `db.set_version` | SetVersion | `db.system.name`, `migrate.version`, `migrate.dirty` |
-| `db.version` | Version | `db.system.name` |
-| `db.drop` | Drop | `db.system.name` |
+| `lock` | Lock | `db.system.name`, `db.operation.name` |
+| `unlock` | Unlock | `db.system.name`, `db.operation.name` |
+| `run` | Run | `db.system.name`, `db.operation.name` |
+| `set_version schema_migrations` | SetVersion | `db.system.name`, `db.operation.name`, `db.collection.name`, `migrate.version`, `migrate.dirty` |
+| `get_version schema_migrations` | Version | `db.system.name`, `db.operation.name`, `db.collection.name` |
+| `drop` | Drop | `db.system.name`, `db.operation.name` |
+
+Only the two version operations carry `db.collection.name`, and only they are
+named after the migrations table. `Run` executes arbitrary migration SQL, `Drop`
+targets the whole database, and `Lock`/`Unlock` are usually advisory locks, so
+naming those after the migrations table would misreport what they touch.
+
+A driver supplies its table by implementing the optional
+`database.MigrationsTabler` interface. All bundled drivers do, except the `stub`
+test driver; `neo4j` reports its node label, which is its equivalent of a
+collection. Drivers that do not implement it still get spans, named after the
+operation alone.
 
 #### Source driver spans (SpanKind: INTERNAL)
 
@@ -200,8 +228,38 @@ migrate emits [OpenTelemetry](https://opentelemetry.io) traces and metrics throu
 | `migrate.migrations.applied` | Counter | `{migration}` | Number of migrations successfully applied |
 | `migrate.migrations.failed` | Counter | `{migration}` | Number of migrations that failed to apply |
 | `migrate.migration.run.duration` | Histogram | `s` | Execution duration of a single migration |
+| `migrate.migration.buffer.duration` | Histogram | `s` | Duration of reading a migration body from the source |
+| `migrate.migration.source.read` | Counter | `By` | Bytes read from the migration source |
+| `migrate.lock.duration` | Histogram | `s` | Duration of database lock acquisition |
+| `migrate.lock.failures` | Counter | `{failure}` | Failed lock acquisitions, including timeouts |
 
-**Common attributes:** `db.system.name`, `migrate.source`, `migrate.direction`, `migrate.version`, `migrate.target_version`, `migrate.identifier`.
+**Common attributes:** `db.system.name`, `db.operation.name`, `db.collection.name`, `migrate.source`, `migrate.direction`, `migrate.version`, `migrate.target_version`, `migrate.identifier`, `error.type`.
+
+`migrate.migrations.failed` also carries `migrate.stage` (`run`,
+`set_version_dirty`, `set_version_clean`) so a broken migration can be told
+apart from failed version bookkeeping. `migrate.lock.failures` carries
+`error.type` (`timeout`, `locked`, `graceful_stop`, `_OTHER`).
+
+A stop signalled on `GracefulStop` while migrate is still waiting for the
+database lock now cancels that attempt instead of waiting out `LockTimeout`.
+Nothing is migrated, and the stop stays latched for the rest of the instance's
+life.
+
+`db.system.name` uses the semantic convention value for the database, not the
+URL scheme — a `sqlite3://` URL reports `sqlite`, `postgres://` reports
+`postgresql`. This keeps it consistent with the value the underlying
+`database/sql` instrumentation reports for the same connection.
+
+### Migration contents are not recorded
+
+Migration bodies frequently contain data — seed rows, backfills, tenant
+identifiers — so they are kept out of telemetry:
+
+- The `database/sql` based drivers disable `db.query.text`, so statements are not
+  attached to spans.
+- Errors are redacted before being recorded: neither the span status description
+  nor the `exception` event includes the failing query. Errors *returned to the
+  caller* are unchanged.
 
 ### Example
 
@@ -210,22 +268,62 @@ import (
     "context"
 
     "github.com/golang-migrate/migrate/v4"
-    "go.opentelemetry.io/otel"
     sdktrace "go.opentelemetry.io/otel/sdk/trace"
     // ... your exporter of choice
 )
 
-// In your application setup:
 ctx := context.Background()
-tp := sdktrace.NewTracerProvider(
-    sdktrace.WithBatcher(yourExporter),
-)
-otel.SetTracerProvider(tp)
+tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(yourExporter))
+defer tp.Shutdown(ctx)
 
-// migrate will now automatically emit spans and metrics.
-m, _ := migrate.New(ctx, "file:///migrations", "postgres://...")
-m.Up(ctx) // emits traces and metrics
+// Pass the provider explicitly...
+m, _ := migrate.New(ctx, "file:///migrations", "postgres://...",
+    migrate.WithTracerProvider(tp))
+m.Up(ctx)
+
+// ...or set it globally with otel.SetTracerProvider(tp) and omit the option.
 ```
+
+### CLI
+
+The `migrate` binary emits **nothing** unless asked, so existing invocations are
+unaffected and no connection to a collector is attempted. Traces and metrics are
+enabled **independently**: a signal is exported when its own exporter variable is
+set, or when an OTLP endpoint is configured.
+
+- `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` (e.g. `otlp`, `console`, `none`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`
+
+Enabling one signal never starts an exporter for the other, so
+`OTEL_TRACES_EXPORTER=console` prints spans without any metrics exporter trying
+to reach a collector. Setting `OTEL_SDK_DISABLED=true` disables everything.
+
+All other standard `OTEL_*` variables (`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`,
+`OTEL_EXPORTER_OTLP_PROTOCOL`, ...) are honoured. Telemetry is flushed before
+exit, including on error paths.
+
+```bash
+# send traces to a local collector
+OTEL_TRACES_EXPORTER=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+  migrate -path=./migrations -database "postgres://..." up
+
+# print spans to stdout (metrics stay off — each signal is enabled separately)
+OTEL_TRACES_EXPORTER=console \
+  migrate -path=./migrations -database "postgres://..." up
+```
+
+### Spanner
+
+The Spanner client publishes metrics of its own (session and channel pool,
+per-operation). They are gated behind `spanner.EnableOpenTelemetryMetrics()`, a
+process-wide switch, so the driver leaves it to the host application to call —
+after which those metrics flow to the global `MeterProvider`.
+
+### Not instrumented
+
+These database drivers are covered by the generic `db.*` spans, but their
+clients emit no telemetry of their own: `cassandra/v2`, `couchbase`,
+`mongodb/v2`, `neo4j`. Contributions welcome.
 
 ## Tutorials
 

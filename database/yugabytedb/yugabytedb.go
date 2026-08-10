@@ -15,6 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v7"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
@@ -132,7 +133,7 @@ func (c *YugabyteDB) Open(ctx context.Context, dbURL string) (database.Driver, e
 	connectString := re.ReplaceAllString(migrate.FilterCustomQuery(purl).String(), "postgres")
 
 	db, err := otelsql.Open("postgres", connectString,
-		otelsql.WithAttributes(semconv.DBSystemNameKey.String("yugabytedb")),
+		dbotel.Options(semconv.DBSystemNameKey.String("yugabytedb"))...,
 	)
 	if err != nil {
 		return nil, err
@@ -469,4 +470,14 @@ func errIsRetryable(err error) bool {
 		pgErr.Code == pgerrcode.DeadlockDetected ||
 		pgErr.Code == pgerrcode.ConnectionFailure || // node down, need to reconnect
 		pgErr.Code == pgerrcode.InternalError // may happen during HA
+}
+
+var _ database.MigrationsTabler = (*YugabyteDB)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (y *YugabyteDB) MigrationsTable() string {
+	if y.config == nil {
+		return ""
+	}
+	return y.config.MigrationsTable
 }

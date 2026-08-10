@@ -16,6 +16,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	"github.com/lib/pq"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
@@ -100,7 +101,7 @@ func (p *Redshift) Open(ctx context.Context, url string) (database.Driver, error
 	purl.Scheme = "postgres"
 
 	db, err := otelsql.Open("postgres", migrate.FilterCustomQuery(purl).String(),
-		otelsql.WithAttributes(semconv.DBSystemNameAWSRedshift),
+		dbotel.Options(semconv.DBSystemNameAWSRedshift)...,
 	)
 	if err != nil {
 		return nil, err
@@ -336,4 +337,14 @@ func (p *Redshift) ensureVersionTable(ctx context.Context) (err error) {
 		return &database.Error{OrigErr: err, Query: []byte(query)}
 	}
 	return nil
+}
+
+var _ database.MigrationsTabler = (*Redshift)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (r *Redshift) MigrationsTable() string {
+	if r.config == nil {
+		return ""
+	}
+	return r.config.MigrationsTable
 }

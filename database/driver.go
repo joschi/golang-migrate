@@ -43,6 +43,10 @@ var drivers = make(map[string]Driver)
 //     When in doubt, return an error and explain the situation to the user.
 //   - All configuration input must come from the URL string in func Open()
 //     or the Config{} struct in WithInstance. Don't os.Getenv().
+//   - Honor context cancellation. Pass ctx through to the calls you make
+//     (ExecContext, QueryRowContext, and equivalents) and return promptly once
+//     it is done; a method that blocks while ignoring ctx stalls the migration
+//     instead of timing out.
 type Driver interface {
 	// Open returns a new driver instance configured with parameters
 	// coming from the URL string. Migrate will call this function
@@ -57,10 +61,18 @@ type Driver interface {
 	// can run at a time. Migrate will call this function before Run is called.
 	// If the implementation can't provide this functionality, return nil.
 	// Return database.ErrLocked if database is already locked.
+	//
+	// ctx carries Migrate's lock timeout as a deadline. Implementations that
+	// wait for the lock must abort and return when ctx is done, so that a
+	// contended lock times out instead of blocking the migration. Returning the
+	// context error is fine; Migrate translates its own deadline into
+	// ErrLockTimeout. A driver with its own wait budget (mysql's GET_LOCK, for
+	// example) may give up sooner, in which case that budget wins.
 	Lock(ctx context.Context) error
 
 	// Unlock should release the lock. Migrate will call this function after
-	// all migrations have been run.
+	// all migrations have been run. As with Lock, ctx carries a deadline and
+	// implementations must return when it is done.
 	Unlock(ctx context.Context) error
 
 	// Run applies a migration to the database. migration is guaranteed to be not nil.
@@ -80,6 +92,33 @@ type Driver interface {
 	// Note that this is a breaking action, a new call to Open() is necessary to
 	// ensure subsequent calls work as expected.
 	Drop(ctx context.Context) error
+}
+
+// MigrationsTabler is an optional interface a Driver may implement to report
+// the table or collection it keeps migration state in.
+//
+// OTelDriver uses it to populate the db.collection.name attribute and to build
+// span names of the form "{db.operation.name} {target}", as the database
+// semantic conventions prescribe. It is consulted only for operations that act
+// on that one table (reading and writing the version); Run executes arbitrary
+// migration SQL and Drop targets the whole database, so neither reports a
+// collection.
+//
+// Drivers that do not implement it still emit spans, named after the operation
+// alone.
+type MigrationsTabler interface {
+	// MigrationsTable returns the table or collection holding migration state,
+	// or an empty string when that is unknown or not applicable.
+	MigrationsTable() string
+}
+
+// migrationsTableOf returns the migrations table reported by driver, or an empty
+// string if it does not report one.
+func migrationsTableOf(driver Driver) string {
+	if t, ok := driver.(MigrationsTabler); ok {
+		return t.MigrationsTable()
+	}
+	return ""
 }
 
 // Open returns a new driver instance.

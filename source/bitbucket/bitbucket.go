@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	nurl "net/url"
 	"os"
 	"path"
@@ -60,7 +59,9 @@ func (b *Bitbucket) Open(ctx context.Context, url string) (source.Driver, error)
 	if err != nil {
 		return nil, err
 	}
-	cl.HttpClient.Transport = otelhttp.NewTransport(http.DefaultTransport)
+	// Wrap the client's existing transport rather than replacing it: some
+	// go-bitbucket constructors configure TLS on the transport they install.
+	cl.HttpClient.Transport = otelhttp.NewTransport(cl.HttpClient.Transport)
 
 	cfg := &Config{}
 	// set owner, repo and path in repo

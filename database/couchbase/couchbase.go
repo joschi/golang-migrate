@@ -512,3 +512,13 @@ func parseInt(urlParam string, defaultValue int) (int, error) {
 
 // Ensure we satisfy the database.Driver interface at compile time.
 var _ database.Driver = (*Couchbase)(nil)
+
+var _ database.MigrationsTabler = (*Couchbase)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (c *Couchbase) MigrationsTable() string {
+	if c.config == nil {
+		return ""
+	}
+	return c.config.MigrationsCollection
+}

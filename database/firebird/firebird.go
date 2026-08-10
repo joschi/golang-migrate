@@ -14,6 +14,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	_ "github.com/nakagami/firebirdsql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
@@ -83,7 +84,7 @@ func (f *Firebird) Open(ctx context.Context, dsn string) (database.Driver, error
 	}
 
 	db, err := otelsql.Open("firebirdsql", migrate.FilterCustomQuery(purl).String(),
-		otelsql.WithAttributes(semconv.DBSystemNameFirebirdSQL),
+		dbotel.Options(semconv.DBSystemNameFirebirdSQL)...,
 	)
 	if err != nil {
 		return nil, err
@@ -255,4 +256,14 @@ func btoi(v bool) int {
 // itob converts int to bool
 func itob(v int) bool {
 	return v != 0
+}
+
+var _ database.MigrationsTabler = (*Firebird)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (f *Firebird) MigrationsTable() string {
+	if f.config == nil {
+		return ""
+	}
+	return f.config.MigrationsTable
 }

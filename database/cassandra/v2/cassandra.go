@@ -329,3 +329,13 @@ func (c *Cassandra) ensureVersionTable(ctx context.Context) (err error) {
 	}
 	return nil
 }
+
+var _ database.MigrationsTabler = (*Cassandra)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (c *Cassandra) MigrationsTable() string {
+	if c.config == nil {
+		return ""
+	}
+	return c.config.MigrationsTable
+}

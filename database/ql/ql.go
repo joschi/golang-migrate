@@ -13,6 +13,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	_ "modernc.org/ql/driver"
 )
@@ -104,7 +105,7 @@ func (m *Ql) Open(ctx context.Context, url string) (database.Driver, error) {
 	}
 	dbfile := strings.Replace(migrate.FilterCustomQuery(purl).String(), "ql://", "", 1)
 	db, err := otelsql.Open("ql", dbfile,
-		otelsql.WithAttributes(semconv.DBSystemNameKey.String("ql")),
+		dbotel.Options(semconv.DBSystemNameKey.String("ql"))...,
 	)
 	if err != nil {
 		return nil, err
@@ -241,4 +242,14 @@ func (m *Ql) Version(ctx context.Context) (version int, dirty bool, err error) {
 		return database.NilVersion, false, nil
 	}
 	return version, dirty, nil
+}
+
+var _ database.MigrationsTabler = (*Ql)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (q *Ql) MigrationsTable() string {
+	if q.config == nil {
+		return ""
+	}
+	return q.config.MigrationsTable
 }

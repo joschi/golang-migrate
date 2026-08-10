@@ -17,6 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/multistmt"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
@@ -78,7 +79,7 @@ func (ch *ClickHouse) Open(ctx context.Context, dsn string) (database.Driver, er
 	q := migrate.FilterCustomQuery(purl)
 	q.Scheme = "tcp"
 	conn, err := otelsql.Open("clickhouse", q.String(),
-		otelsql.WithAttributes(semconv.DBSystemNameClickHouse),
+		dbotel.Options(semconv.DBSystemNameClickHouse)...,
 	)
 	if err != nil {
 		return nil, err
@@ -314,4 +315,14 @@ func quoteIdentifier(name string) string {
 		name = name[:end]
 	}
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+var _ database.MigrationsTabler = (*ClickHouse)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (c *ClickHouse) MigrationsTable() string {
+	if c.config == nil {
+		return ""
+	}
+	return c.config.MigrationsTable
 }

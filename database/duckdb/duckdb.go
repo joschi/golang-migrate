@@ -11,8 +11,12 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v4/internal/dbotel"
 
 	_ "github.com/duckdb/duckdb-go/v2"
 )
@@ -44,7 +48,9 @@ func (d *DuckDB) Open(ctx context.Context, url string) (database.Driver, error) 
 		return nil, fmt.Errorf("parsing url: %w", err)
 	}
 	dbfile := strings.Replace(migrate.FilterCustomQuery(purl).String(), "duckdb://", "", 1)
-	db, err := sql.Open("duckdb", dbfile)
+	db, err := otelsql.Open("duckdb", dbfile,
+		dbotel.Options(semconv.DBSystemNameKey.String("duckdb"))...,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("opening '%s': %w", dbfile, err)
 	}
@@ -254,4 +260,14 @@ func WithInstance(ctx context.Context, instance *sql.DB, config *Config) (databa
 		return nil, err
 	}
 	return mx, nil
+}
+
+var _ database.MigrationsTabler = (*DuckDB)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (d *DuckDB) MigrationsTable() string {
+	if d.config == nil {
+		return ""
+	}
+	return d.config.MigrationsTable
 }
