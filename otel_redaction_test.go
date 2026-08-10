@@ -28,24 +28,34 @@ import (
 const secretSQL = "INSERT INTO users (email) VALUES ('alice@example.com');"
 
 // failingDriver returns a database.Error carrying migration SQL from Run.
+//
+// pointerForm selects between the two shapes drivers use. Most return
+// *database.Error, so a test that only covers the value form would not notice
+// redaction missing the common case.
 type failingDriver struct {
 	database.Driver
+	pointerForm bool
 }
 
 func (d *failingDriver) Run(ctx context.Context, migration io.Reader) error {
-	return database.Error{
+	err := database.Error{
 		Line:    3,
 		Query:   []byte(secretSQL),
 		Err:     "migration failed",
 		OrigErr: errors.New("syntax error"),
 	}
+	if d.pointerForm {
+		return &err
+	}
+	return err
 }
 
 // newRedactionTest wires a Migrate instance whose database driver always fails,
 // with an explicitly injected TracerProvider (no global state).
-func newRedactionTest(t *testing.T) (*Migrate, *tracetest.InMemoryExporter) {
+func newRedactionTest(t *testing.T, pointerForm bool) (*Migrate, *tracetest.InMemoryExporter) {
 	t.Helper()
-	m, exp, _ := newMigrateWithDriver(t, &failingDriver{Driver: openStubDriver(t)})
+	m, exp, _ := newMigrateWithDriver(t,
+		&failingDriver{Driver: openStubDriver(t), pointerForm: pointerForm})
 	return m, exp
 }
 
@@ -54,7 +64,20 @@ func newRedactionTest(t *testing.T) (*Migrate, *tracetest.InMemoryExporter) {
 // span.RecordError still recorded the full error, so exception.message carried
 // the SQL on every span in the trace.
 func TestOtelMigrationSQLIsNotLeaked(t *testing.T) {
-	m, exp := newRedactionTest(t)
+	for _, pointerForm := range []bool{false, true} {
+		name := "value database.Error"
+		if pointerForm {
+			name = "pointer *database.Error"
+		}
+		t.Run(name, func(t *testing.T) {
+			assertNoSQLLeak(t, pointerForm)
+		})
+	}
+}
+
+func assertNoSQLLeak(t *testing.T, pointerForm bool) {
+	t.Helper()
+	m, exp := newRedactionTest(t, pointerForm)
 
 	err := m.Up(context.Background())
 	require.Error(t, err)
@@ -90,7 +113,7 @@ func TestOtelMigrationSQLIsNotLeaked(t *testing.T) {
 
 // TestOtelErrorTypeAttribute checks that failures carry error.type.
 func TestOtelErrorTypeAttribute(t *testing.T) {
-	m, exp := newRedactionTest(t)
+	m, exp := newRedactionTest(t, true)
 	require.Error(t, m.Up(context.Background()))
 
 	var found bool

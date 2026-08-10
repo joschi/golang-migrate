@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"go.opentelemetry.io/otel"
@@ -166,23 +165,6 @@ func RecordSpanError(span trace.Span, err error) {
 	span.RecordError(redacted)
 	span.SetAttributes(semconv.ErrorTypeKey.String(ErrorType(err)))
 	span.SetStatus(codes.Error, redacted.Error())
-}
-
-// ErrorType returns a low cardinality value for the error.type attribute,
-// layering this package's lock sentinels over the shared classification.
-// Callers with their own sentinels layer those on top of this.
-func ErrorType(err error) string {
-	var dbErr Error
-	if errors.As(err, &dbErr) && dbErr.OrigErr != nil {
-		err = dbErr.OrigErr
-	}
-	switch {
-	case errors.Is(err, ErrLocked):
-		return "locked"
-	case errors.Is(err, ErrNotLocked):
-		return "not_locked"
-	}
-	return otelconv.ErrorType(err)
 }
 
 func endSpan(span trace.Span, err error) {

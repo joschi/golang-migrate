@@ -70,6 +70,18 @@ func (d *blockingDriver) Lock(ctx context.Context) error {
 
 func (d *blockingDriver) Unlock(ctx context.Context) error { return d.block(ctx) }
 
+// requireSawCancel asserts the driver observed its context ending with want,
+// which is what distinguishes a canceled call from an abandoned one.
+func requireSawCancel(t *testing.T, drv *blockingDriver, want error) {
+	t.Helper()
+	select {
+	case ctxErr := <-drv.sawCancel:
+		assert.ErrorIs(t, ctxErr, want)
+	case <-time.After(promptly):
+		t.Fatal("driver call was abandoned, not canceled: it never observed ctx.Done()")
+	}
+}
+
 // ctxAwareDriver honors context cancellation the way a real SQL driver does: a
 // done context fails the call rather than being ignored. The stub driver is a
 // pure in-process CAS that never looks at ctx, so it cannot show whether a
@@ -143,13 +155,7 @@ func TestLockTimeoutCancelsTheDriver(t *testing.T) {
 
 	require.ErrorIs(t, m.lock(context.Background()), ErrLockTimeout)
 
-	select {
-	case ctxErr := <-drv.sawCancel:
-		assert.ErrorIs(t, ctxErr, context.DeadlineExceeded,
-			"driver must observe its context being canceled")
-	case <-time.After(20 * testLockTimeout):
-		t.Fatal("driver Lock was abandoned, not canceled: it never observed ctx.Done()")
-	}
+	requireSawCancel(t, drv, context.DeadlineExceeded)
 }
 
 // TestLockTimeoutLeavesNoGoroutine guards against the leaked goroutine the old
@@ -252,13 +258,7 @@ func TestUnlockIsBounded(t *testing.T) {
 	require.Error(t, err, "a blocking Unlock must not report success")
 	assert.Less(t, time.Since(start), promptly, "unlock did not return promptly")
 
-	select {
-	case ctxErr := <-drv.sawCancel:
-		assert.ErrorIs(t, ctxErr, context.DeadlineExceeded,
-			"driver must observe its context being canceled")
-	case <-time.After(promptly):
-		t.Fatal("unlock was abandoned, not canceled")
-	}
+	requireSawCancel(t, drv, context.DeadlineExceeded)
 }
 
 // TestUnlockSurvivesCallerCancellation covers the reason unlock detaches from
@@ -276,4 +276,33 @@ func TestUnlockSurvivesCallerCancellation(t *testing.T) {
 
 	require.NoError(t, m.unlock(ctx), "unlock must still release with a canceled caller")
 	assert.False(t, m.isLocked, "isLocked must be cleared after a successful unlock")
+}
+
+// TestLockAbortsOnGracefulStop covers a stop requested while still waiting for
+// the lock. It used to be ignored, so the caller waited out the whole
+// LockTimeout; the attempt is now canceled promptly.
+func TestLockAbortsOnGracefulStop(t *testing.T) {
+	drv := newBlockingDriver(t)
+	m, _, _ := newMigrateWithDriver(t, drv)
+	m.LockTimeout = time.Hour // only a stop can end this wait
+
+	go func() {
+		<-drv.entered
+		m.GracefulStop <- true
+	}()
+
+	start := time.Now()
+	err := m.lock(context.Background())
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errGracefulStop)
+	assert.NotErrorIs(t, err, ErrLockTimeout, "a stop is not a timeout")
+	assert.Less(t, time.Since(start), promptly, "lock did not abort promptly")
+	assert.False(t, m.isLocked)
+
+	requireSawCancel(t, drv, context.Canceled)
+
+	// The signal must still be visible to the migration loop, even though lock
+	// drained the channel rather than stop().
+	assert.True(t, m.stop(), "graceful stop must stay latched after lock consumed it")
 }

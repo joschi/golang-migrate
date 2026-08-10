@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -45,6 +46,16 @@ var (
 	ErrNoMigrationFiles = fmt.Errorf("no migration files found in source: %w", os.ErrNotExist)
 )
 
+// errGracefulStop reports that a stop arrived on GracefulStop while the lock was
+// still being acquired, so nothing was migrated.
+//
+// Deliberately unexported: the outcome is not deterministic. A driver that
+// ignores context cancellation acquires the lock anyway, in which case the
+// operation proceeds, finds the stop latched, applies nothing and returns nil.
+// Callers should therefore not branch on this; it exists to abort the wait
+// promptly and to say why.
+var errGracefulStop = errors.New("stopped while acquiring database lock")
+
 // ErrShortLimit is an error returned when not enough migrations
 // can be returned by a source for a given limit.
 type ErrShortLimit struct {
@@ -79,7 +90,10 @@ type Migrate struct {
 	GracefulStop chan bool
 	isLockedMu   *sync.Mutex
 
-	isGracefulStop bool
+	// isGracefulStop is atomic because stop is called from the source-reading
+	// goroutines as well as the migration loop, and lock latches it too. It is
+	// never cleared: an instance is single-use once a stop has been observed.
+	isGracefulStop atomic.Bool
 	isLocked       bool
 
 	// PrefetchMigrations defaults to DefaultPrefetchMigrations,
@@ -90,8 +104,7 @@ type Migrate struct {
 	// It defaults to DefaultLockTimeout, but can be set per Migrate instance.
 	LockTimeout time.Duration
 
-	// otel holds the tracer, configuration and pre-created metric instruments.
-	otelConfig      config
+	// otel holds the tracer and pre-created metric instruments.
 	otelTracer      trace.Tracer
 	otelInstruments otelInstruments
 
@@ -105,7 +118,7 @@ type Migrate struct {
 // New returns a new Migrate instance from a source URL and a database URL.
 // The URL scheme is defined by each driver.
 func New(ctx context.Context, sourceURL, databaseURL string, opts ...Option) (retM *Migrate, retErr error) {
-	m := newCommon(opts)
+	m, cfg := newCommon(opts)
 
 	ctx, span := m.startOpenSpan(ctx)
 	defer func() { endSpan(span, retErr) }()
@@ -128,13 +141,13 @@ func New(ctx context.Context, sourceURL, databaseURL string, opts ...Option) (re
 	if err != nil {
 		return nil, fmt.Errorf("failed to open source, %q: %w", sourceURL, err)
 	}
-	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName, m.otelConfig.sourceOTelOptions()...)
+	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName, cfg.sourceOTelOptions()...)
 
 	databaseDrv, err := database.Open(ctx, databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", database.RedactPassword(err))
 	}
-	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
+	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName, cfg.databaseOTelOptions()...)
 
 	return m, nil
 }
@@ -144,7 +157,7 @@ func New(ctx context.Context, sourceURL, databaseURL string, opts ...Option) (re
 // Use any string that can serve as an identifier during logging as databaseDriverName.
 // You are responsible for closing the underlying database client if necessary.
 func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriverName string, databaseInstance database.Driver, opts ...Option) (retM *Migrate, retErr error) {
-	m := newCommon(opts)
+	m, cfg := newCommon(opts)
 
 	ctx, span := m.startOpenSpan(ctx)
 	defer func() { endSpan(span, retErr) }()
@@ -163,9 +176,9 @@ func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriv
 	if err != nil {
 		return nil, fmt.Errorf("failed to open source, %q: %w", sourceURL, err)
 	}
-	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName, m.otelConfig.sourceOTelOptions()...)
+	m.sourceDrv = source.NewOTelDriver(sourceDrv, sourceName, cfg.sourceOTelOptions()...)
 
-	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
+	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName, cfg.databaseOTelOptions()...)
 
 	return m, nil
 }
@@ -175,7 +188,7 @@ func NewWithDatabaseInstance(ctx context.Context, sourceURL string, databaseDriv
 // Use any string that can serve as an identifier during logging as sourceName.
 // You are responsible for closing the underlying source client if necessary.
 func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstance source.Driver, databaseURL string, opts ...Option) (retM *Migrate, retErr error) {
-	m := newCommon(opts)
+	m, cfg := newCommon(opts)
 
 	ctx, span := m.startOpenSpan(ctx)
 	defer func() { endSpan(span, retErr) }()
@@ -194,9 +207,9 @@ func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstanc
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
+	m.databaseDrv = database.NewOTelDriver(databaseDrv, databaseDriverName, cfg.databaseOTelOptions()...)
 
-	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName, m.otelConfig.sourceOTelOptions()...)
+	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName, cfg.sourceOTelOptions()...)
 
 	return m, nil
 }
@@ -206,29 +219,32 @@ func NewWithSourceInstance(ctx context.Context, sourceName string, sourceInstanc
 // as sourceName and databaseDriverName. You are responsible for closing down
 // the underlying source and database client if necessary.
 func NewWithInstance(ctx context.Context, sourceName string, sourceInstance source.Driver, databaseDriverName string, databaseInstance database.Driver, opts ...Option) (*Migrate, error) {
-	m := newCommon(opts)
+	m, cfg := newCommon(opts)
 
 	m.sourceName = sourceName
 	m.databaseDriverName = databaseDriverName
 	m.initOTelAttrs()
 
-	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName, m.otelConfig.sourceOTelOptions()...)
-	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName, m.otelConfig.databaseOTelOptions()...)
+	m.sourceDrv = source.NewOTelDriver(sourceInstance, sourceName, cfg.sourceOTelOptions()...)
+	m.databaseDrv = database.NewOTelDriver(databaseInstance, databaseDriverName, cfg.databaseOTelOptions()...)
 
 	return m, nil
 }
 
-func newCommon(opts []Option) *Migrate {
+// newCommon builds the shared parts of a Migrate instance and returns the
+// resolved config alongside it. The config is only needed while wiring up the
+// drivers, so it is not kept on the instance.
+func newCommon(opts []Option) (*Migrate, config) {
 	cfg := newConfig(opts)
-	return &Migrate{
+	m := &Migrate{
 		GracefulStop:       make(chan bool, 1),
 		PrefetchMigrations: DefaultPrefetchMigrations,
 		LockTimeout:        DefaultLockTimeout,
 		isLockedMu:         &sync.Mutex{},
-		otelConfig:         cfg,
 		otelTracer:         newTracer(cfg),
 		otelInstruments:    newOtelInstruments(newMeter(cfg)),
 	}
+	return m, cfg
 }
 
 // startSpan starts an INTERNAL span for a migrate operation, carrying the
@@ -967,13 +983,13 @@ func (m *Migrate) versionExists(ctx context.Context, version uint) (result error
 // because a stop signal was received on the GracefulStop channel.
 // Calls are cheap and this function is not blocking.
 func (m *Migrate) stop() bool {
-	if m.isGracefulStop {
+	if m.isGracefulStop.Load() {
 		return true
 	}
 
 	select {
 	case <-m.GracefulStop:
-		m.isGracefulStop = true
+		m.isGracefulStop.Store(true)
 		return true
 
 	default:
@@ -1052,11 +1068,35 @@ func (m *Migrate) lock(ctx context.Context) error {
 	}
 
 	// Attaching ErrLockTimeout as the cancellation cause is what lets our own
-	// deadline be told apart from the caller's context ending, without trusting
-	// the returned error: some drivers rewrite it (mongodb reports every lock
-	// failure as ErrLocked).
-	lockCtx, cancel := context.WithTimeoutCause(ctx, m.LockTimeout, ErrLockTimeout)
+	// deadline be told apart from the caller's context ending without trusting
+	// the returned error. A driver that honors ctx returns a bare or wrapped
+	// context error, which says nothing about which deadline fired, and several
+	// drivers never observe ctx at all.
+	// A stop requested while waiting for the lock used to be ignored, leaving the
+	// caller to wait out the whole timeout. Cancel the attempt instead, and latch
+	// the flag so that stop still reports it even though the channel was drained
+	// here rather than by the migration loop.
+	stopCtx, stopCancel := context.WithCancelCause(ctx)
+	lockCtx, cancel := context.WithTimeoutCause(stopCtx, m.LockTimeout, ErrLockTimeout)
 	defer cancel()
+
+	watcherDone := make(chan struct{})
+	go func() {
+		defer close(watcherDone)
+		select {
+		case <-m.GracefulStop:
+			m.isGracefulStop.Store(true)
+			stopCancel(errGracefulStop)
+		case <-stopCtx.Done():
+		}
+	}()
+	// Release the watcher and then wait for it, in this order and in one defer:
+	// nothing may outlive lock, which is the invariant that makes acquisition
+	// synchronous in the first place.
+	defer func() {
+		stopCancel(nil)
+		<-watcherDone
+	}()
 
 	start := time.Now()
 	err := m.databaseDrv.Lock(lockCtx)
@@ -1067,7 +1107,10 @@ func (m *Migrate) lock(ctx context.Context) error {
 		return nil
 	}
 
-	if errors.Is(context.Cause(lockCtx), ErrLockTimeout) {
+	switch cause := context.Cause(lockCtx); {
+	case errors.Is(cause, errGracefulStop):
+		err = errGracefulStop
+	case errors.Is(cause, ErrLockTimeout):
 		err = ErrLockTimeout
 	}
 
@@ -1078,13 +1121,15 @@ func (m *Migrate) lock(ctx context.Context) error {
 // recordLockFailure counts a failed lock acquisition, dimensioned by cause.
 func (m *Migrate) recordLockFailure(ctx context.Context, err error) {
 	// Layer this package's sentinels over the database classification, which
-	// already unwraps database.Error and handles the shared causes.
+	// handles the shared causes.
 	errType := database.ErrorType(err)
 	switch {
 	case errors.Is(err, ErrLockTimeout):
 		errType = "timeout"
 	case errors.Is(err, ErrLocked):
 		errType = "locked"
+	case errors.Is(err, errGracefulStop):
+		errType = "graceful_stop"
 	}
 	m.otelInstruments.lockFailures.Add(ctx, 1, metric.WithAttributes(
 		m.otelAttrsWith(semconv.ErrorTypeKey.String(errType))...))

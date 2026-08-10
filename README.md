@@ -238,7 +238,12 @@ operation alone.
 `migrate.migrations.failed` also carries `migrate.stage` (`run`,
 `set_version_dirty`, `set_version_clean`) so a broken migration can be told
 apart from failed version bookkeeping. `migrate.lock.failures` carries
-`error.type` (`timeout`, `locked`, `_OTHER`).
+`error.type` (`timeout`, `locked`, `graceful_stop`, `_OTHER`).
+
+A stop signalled on `GracefulStop` while migrate is still waiting for the
+database lock now cancels that attempt instead of waiting out `LockTimeout`.
+Nothing is migrated, and the stop stays latched for the rest of the instance's
+life.
 
 `db.system.name` uses the semantic convention value for the database, not the
 URL scheme — a `sqlite3://` URL reports `sqlite`, `postgres://` reports
@@ -306,6 +311,13 @@ OTEL_TRACES_EXPORTER=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
 OTEL_TRACES_EXPORTER=console \
   migrate -path=./migrations -database "postgres://..." up
 ```
+
+### Spanner
+
+The Spanner client publishes metrics of its own (session and channel pool,
+per-operation). They are gated behind `spanner.EnableOpenTelemetryMetrics()`, a
+process-wide switch, so the driver leaves it to the host application to call —
+after which those metrics flow to the global `MeterProvider`.
 
 ### Not instrumented
 

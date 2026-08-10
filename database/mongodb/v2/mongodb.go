@@ -381,6 +381,13 @@ func (m *Mongo) Lock(ctx context.Context) error {
 			backoff.WithMaxElapsedTime(time.Duration(m.config.Locking.Timeout)*time.Second),
 		)
 		if err != nil {
+			// A caller giving up is not lock contention, so report its context
+			// error as itself. ctx.Err rather than the returned error on purpose:
+			// each attempt has its own shorter timeout, so a slow mongo yields a
+			// deadline error while the caller's context is still live.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
 			return database.ErrLocked
 		}
 

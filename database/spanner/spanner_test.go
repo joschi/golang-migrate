@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
 
 	dt "github.com/golang-migrate/migrate/v4/database/testing"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -171,4 +172,16 @@ func TestCleanStatements(t *testing.T) {
 			assert.Equal(t, tc.expected, stmts)
 		})
 	}
+}
+
+// TestLockErrorsSatisfyContract pins the database.Driver contract for this
+// driver's lock sentinels: they must be recognizable as database.ErrLocked and
+// database.ErrNotLocked. They were previously bare errors.New values, so
+// spanner's lock failures classified as _OTHER in telemetry.
+func TestLockErrorsSatisfyContract(t *testing.T) {
+	assert.ErrorIs(t, ErrLockHeld, database.ErrLocked)
+	assert.ErrorIs(t, ErrLockNotHeld, database.ErrNotLocked)
+
+	assert.Equal(t, "locked", database.ErrorType(ErrLockHeld))
+	assert.Equal(t, "not_locked", database.ErrorType(ErrLockNotHeld))
 }

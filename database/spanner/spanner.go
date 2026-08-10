@@ -39,8 +39,10 @@ var (
 	ErrNoDatabaseName = errors.New("no database name")
 	ErrNoSchema       = errors.New("no schema")
 	ErrDatabaseDirty  = errors.New("database is dirty")
-	ErrLockHeld       = errors.New("unable to obtain lock")
-	ErrLockNotHeld    = errors.New("unable to release already released lock")
+	// Wrapped so they satisfy the database.Driver contract; see Lock in
+	// database/driver.go.
+	ErrLockHeld    = fmt.Errorf("%w: spanner lock already held", database.ErrLocked)
+	ErrLockNotHeld = fmt.Errorf("%w: spanner lock already released", database.ErrNotLocked)
 )
 
 // Config used for a Spanner instance
@@ -113,7 +115,13 @@ func (s *Spanner) Open(ctx context.Context, url string) (database.Driver, error)
 		return nil, err
 	}
 	dbname := strings.Replace(migrate.FilterCustomQuery(purl).String(), "spanner://", "", 1)
-	dataClient, err := spanner.NewClient(ctx, dbname, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
+
+	// The Spanner client's own metrics need no wiring here: they are gated on
+	// spanner.EnableOpenTelemetryMetrics(), a process-wide switch this driver must
+	// not flip on the host application's behalf, and once enabled they default to
+	// the global MeterProvider anyway. See the OpenTelemetry section of README.md.
+	dataClient, err := spanner.NewClient(ctx, dbname,
+		option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
 	if err != nil {
 		_ = adminClient.Close()
 		return nil, err
