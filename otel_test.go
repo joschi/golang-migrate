@@ -101,6 +101,28 @@ func hasHistogramData(rm metricdata.ResourceMetrics, name string) bool {
 	return false
 }
 
+// counterHasAttr reports whether any data point of the named Int64 counter
+// carries key=value.
+func counterHasAttr(rm metricdata.ResourceMetrics, name string, key attribute.Key, value string) bool {
+	for _, sm := range rm.ScopeMetrics {
+		for _, metric := range sm.Metrics {
+			if metric.Name != name {
+				continue
+			}
+			data, ok := metric.Data.(metricdata.Sum[int64])
+			if !ok {
+				return false
+			}
+			for _, dp := range data.DataPoints {
+				if v, present := dp.Attributes.Value(key); present && v.AsString() == value {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // attrVal finds an attribute value by key in a span's attribute set.
 func attrVal(span sdktrace.ReadOnlySpan, key string) (attribute.Value, bool) {
 	for _, kv := range span.Attributes() {

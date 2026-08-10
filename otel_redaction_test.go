@@ -41,26 +41,11 @@ func (d *failingDriver) Run(ctx context.Context, migration io.Reader) error {
 	}
 }
 
-// newRedactionTest wires a Migrate instance with an explicitly injected
-// TracerProvider (no global state) whose database driver always fails.
+// newRedactionTest wires a Migrate instance whose database driver always fails,
+// with an explicitly injected TracerProvider (no global state).
 func newRedactionTest(t *testing.T) (*Migrate, *tracetest.InMemoryExporter) {
 	t.Helper()
-
-	exp := tracetest.NewInMemoryExporter()
-	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
-	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
-
-	ctx := context.Background()
-	srcDrv, err := (&sStub.Stub{}).Open(ctx, "stub://")
-	require.NoError(t, err)
-	srcDrv.(*sStub.Stub).Migrations = sourceStubMigrations
-
-	dbDrv, err := (&dStub.Stub{}).Open(ctx, "stub://")
-	require.NoError(t, err)
-
-	m, err := NewWithInstance(ctx, "stub", srcDrv, "stub", &failingDriver{Driver: dbDrv},
-		WithTracerProvider(tp))
-	require.NoError(t, err)
+	m, exp, _ := newMigrateWithDriver(t, &failingDriver{Driver: openStubDriver(t)})
 	return m, exp
 }
 

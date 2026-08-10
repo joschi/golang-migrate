@@ -43,6 +43,10 @@ var drivers = make(map[string]Driver)
 //     When in doubt, return an error and explain the situation to the user.
 //   - All configuration input must come from the URL string in func Open()
 //     or the Config{} struct in WithInstance. Don't os.Getenv().
+//   - Honor context cancellation. Pass ctx through to the calls you make
+//     (ExecContext, QueryRowContext, and equivalents) and return promptly once
+//     it is done; a method that blocks while ignoring ctx stalls the migration
+//     instead of timing out.
 type Driver interface {
 	// Open returns a new driver instance configured with parameters
 	// coming from the URL string. Migrate will call this function
@@ -57,10 +61,18 @@ type Driver interface {
 	// can run at a time. Migrate will call this function before Run is called.
 	// If the implementation can't provide this functionality, return nil.
 	// Return database.ErrLocked if database is already locked.
+	//
+	// ctx carries Migrate's lock timeout as a deadline. Implementations that
+	// wait for the lock must abort and return when ctx is done, so that a
+	// contended lock times out instead of blocking the migration. Returning the
+	// context error is fine; Migrate translates its own deadline into
+	// ErrLockTimeout. A driver with its own wait budget (mysql's GET_LOCK, for
+	// example) may give up sooner, in which case that budget wins.
 	Lock(ctx context.Context) error
 
 	// Unlock should release the lock. Migrate will call this function after
-	// all migrations have been run.
+	// all migrations have been run. As with Lock, ctx carries a deadline and
+	// implementations must return when it is done.
 	Unlock(ctx context.Context) error
 
 	// Run applies a migration to the database. migration is guaranteed to be not nil.

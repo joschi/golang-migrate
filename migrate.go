@@ -86,8 +86,8 @@ type Migrate struct {
 	// but can be set per Migrate instance.
 	PrefetchMigrations uint
 
-	// LockTimeout defaults to DefaultLockTimeout,
-	// but can be set per Migrate instance.
+	// LockTimeout bounds both acquiring and releasing the database lock.
+	// It defaults to DefaultLockTimeout, but can be set per Migrate instance.
 	LockTimeout time.Duration
 
 	// otel holds the tracer, configuration and pre-created metric instruments.
@@ -1038,66 +1038,56 @@ func (m *Migrate) newMigration(ctx context.Context, version uint, targetVersion 
 
 // lock is a thread safe helper function to lock the database.
 // It should be called as late as possible when running migrations.
+//
+// Acquisition is bounded by LockTimeout, which cancels the driver's attempt
+// rather than abandoning it; see the database.Driver docs for the cancellation
+// this relies on.
 func (m *Migrate) lock(ctx context.Context) error {
 	m.isLockedMu.Lock()
 	defer m.isLockedMu.Unlock()
 
 	if m.isLocked {
+		m.recordLockFailure(ctx, ErrLocked)
 		return ErrLocked
 	}
 
-	// create done channel, used in the timeout goroutine
-	done := make(chan bool, 1)
-	defer func() {
-		done <- true
-	}()
+	// Attaching ErrLockTimeout as the cancellation cause is what lets our own
+	// deadline be told apart from the caller's context ending, without trusting
+	// the returned error: some drivers rewrite it (mongodb reports every lock
+	// failure as ErrLocked).
+	lockCtx, cancel := context.WithTimeoutCause(ctx, m.LockTimeout, ErrLockTimeout)
+	defer cancel()
 
-	// use errchan to signal error back to this context
-	errchan := make(chan error, 2)
-
-	// start timeout goroutine
-	timeout := time.After(m.LockTimeout)
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			case <-timeout:
-				errchan <- ErrLockTimeout
-				return
-			}
-		}
-	}()
-
-	// now try to acquire the lock
-	go func() {
-		if err := m.databaseDrv.Lock(ctx); err != nil {
-			errchan <- err
-		} else {
-			errchan <- nil
-		}
-	}()
-
-	// wait until we either receive ErrLockTimeout or error from Lock operation
 	start := time.Now()
-	err := <-errchan
+	err := m.databaseDrv.Lock(lockCtx)
 	m.otelInstruments.lockDuration.Record(ctx, time.Since(start).Seconds(), m.otelMetricAttrs)
+
 	if err == nil {
 		m.isLocked = true
 		return nil
 	}
 
-	// A failed lock is the most common operational failure, so record why.
-	errType := "_OTHER"
+	if errors.Is(context.Cause(lockCtx), ErrLockTimeout) {
+		err = ErrLockTimeout
+	}
+
+	m.recordLockFailure(ctx, err)
+	return err
+}
+
+// recordLockFailure counts a failed lock acquisition, dimensioned by cause.
+func (m *Migrate) recordLockFailure(ctx context.Context, err error) {
+	// Layer this package's sentinels over the database classification, which
+	// already unwraps database.Error and handles the shared causes.
+	errType := database.ErrorType(err)
 	switch {
 	case errors.Is(err, ErrLockTimeout):
 		errType = "timeout"
-	case errors.Is(err, ErrLocked), errors.Is(err, database.ErrLocked):
+	case errors.Is(err, ErrLocked):
 		errType = "locked"
 	}
 	m.otelInstruments.lockFailures.Add(ctx, 1, metric.WithAttributes(
 		m.otelAttrsWith(semconv.ErrorTypeKey.String(errType))...))
-	return err
 }
 
 // bufferMigration reads a migration body from the source, emitting a span and
@@ -1133,8 +1123,20 @@ func (m *Migrate) unlock(ctx context.Context) error {
 	m.isLockedMu.Lock()
 	defer m.isLockedMu.Unlock()
 
-	if err := m.databaseDrv.Unlock(ctx); err != nil {
-		// BUG: Can potentially create a deadlock. Add a timeout.
+	// Bound the release the same way acquisition is bounded, so that a driver
+	// which never returns cannot hang the migration indefinitely.
+	//
+	// Detach from the caller's cancellation first: unlock is cleanup, and it
+	// usually runs while handling a failure that the caller's canceled context
+	// caused. Deriving from that context would produce an already-done deadline,
+	// so the lock would never be released and isLocked would stay set.
+	unlockCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), m.LockTimeout)
+	defer cancel()
+
+	if err := m.databaseDrv.Unlock(unlockCtx); err != nil {
+		// isLocked is deliberately left set: whether the database is still
+		// locked is unknown here, and keeping the conservative state makes a
+		// later lock report ErrLocked rather than risk migrating unlocked.
 		return err
 	}
 

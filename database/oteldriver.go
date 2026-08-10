@@ -164,13 +164,14 @@ func RecordSpanError(span trace.Span, err error) {
 	}
 	redacted := RedactError(err)
 	span.RecordError(redacted)
-	span.SetAttributes(semconv.ErrorTypeKey.String(errorType(err)))
+	span.SetAttributes(semconv.ErrorTypeKey.String(ErrorType(err)))
 	span.SetStatus(codes.Error, redacted.Error())
 }
 
-// errorType returns a low cardinality value for the error.type attribute,
+// ErrorType returns a low cardinality value for the error.type attribute,
 // layering this package's lock sentinels over the shared classification.
-func errorType(err error) string {
+// Callers with their own sentinels layer those on top of this.
+func ErrorType(err error) string {
 	var dbErr Error
 	if errors.As(err, &dbErr) && dbErr.OrigErr != nil {
 		err = dbErr.OrigErr
