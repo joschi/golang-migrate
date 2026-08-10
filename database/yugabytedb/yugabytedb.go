@@ -471,3 +471,13 @@ func errIsRetryable(err error) bool {
 		pgErr.Code == pgerrcode.ConnectionFailure || // node down, need to reconnect
 		pgErr.Code == pgerrcode.InternalError // may happen during HA
 }
+
+var _ database.MigrationsTabler = (*YugabyteDB)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (y *YugabyteDB) MigrationsTable() string {
+	if y.config == nil {
+		return ""
+	}
+	return y.config.MigrationsTable
+}

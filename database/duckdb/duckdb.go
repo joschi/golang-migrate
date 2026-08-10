@@ -261,3 +261,13 @@ func WithInstance(ctx context.Context, instance *sql.DB, config *Config) (databa
 	}
 	return mx, nil
 }
+
+var _ database.MigrationsTabler = (*DuckDB)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (d *DuckDB) MigrationsTable() string {
+	if d.config == nil {
+		return ""
+	}
+	return d.config.MigrationsTable
+}

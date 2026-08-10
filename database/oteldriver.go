@@ -20,12 +20,12 @@ const tracerName = "github.com/golang-migrate/migrate/v4/database"
 // bookkeeping operation rather than a single statement, since one call may run
 // several statements.
 const (
-	opLock       = "LOCK"
-	opUnlock     = "UNLOCK"
-	opRun        = "RUN MIGRATION"
-	opSetVersion = "SET VERSION"
-	opVersion    = "GET VERSION"
-	opDrop       = "DROP"
+	opLock       = "lock"
+	opUnlock     = "unlock"
+	opRun        = "run"
+	opSetVersion = "set_version"
+	opVersion    = "get_version"
+	opDrop       = "drop"
 )
 
 // OTelDriver wraps a Driver and adds OpenTelemetry CLIENT spans for each
@@ -35,7 +35,21 @@ type OTelDriver struct {
 	driver     Driver
 	driverName string
 	tracer     trace.Tracer
-	opts       []OTelOption
+
+	// migrationsTable is the db.collection.name target, empty when the wrapped
+	// driver does not report one.
+	migrationsTable string
+
+	// spans holds the span name and attributes for each operation. Everything in
+	// it is fixed once the driver is wrapped, so it is built once rather than on
+	// every call.
+	spans map[string]spanTemplate
+}
+
+// spanTemplate is the precomputed span name and attribute set for one operation.
+type spanTemplate struct {
+	name  string
+	attrs []attribute.KeyValue
 }
 
 // OTelOption configures the OpenTelemetry driver wrapper.
@@ -69,36 +83,73 @@ func newOTelConfig(opts []OTelOption) otelConfig {
 	return cfg
 }
 
-func newTracer(cfg otelConfig) trace.Tracer {
-	tracerOpts := []trace.TracerOption{trace.WithSchemaURL(otelconv.SchemaURL)}
-	if v := otelconv.Version(); v != "" {
-		tracerOpts = append(tracerOpts, trace.WithInstrumentationVersion(v))
-	}
-	return cfg.tracerProvider.Tracer(tracerName, tracerOpts...)
-}
-
 // NewOTelDriver wraps driver with OpenTelemetry instrumentation.
 // driverName populates the db.system.name attribute on every span; registered
 // driver schemes are mapped to their semantic convention value.
 func NewOTelDriver(driver Driver, driverName string, opts ...OTelOption) Driver {
+	table := migrationsTableOf(driver)
 	return &OTelDriver{
-		driver:     driver,
-		driverName: driverName,
-		tracer:     newTracer(newOTelConfig(opts)),
-		opts:       opts,
+		driver:          driver,
+		driverName:      driverName,
+		tracer:          otelconv.Tracer(newOTelConfig(opts).tracerProvider, tracerName),
+		migrationsTable: table,
+		spans:           newSpanTemplates(driverName, table),
 	}
 }
 
-func (d *OTelDriver) attrs(operation string) []attribute.KeyValue {
-	return []attribute.KeyValue{
-		semconv.DBSystemNameKey.String(otelconv.DBSystemName(d.driverName)),
-		semconv.DBOperationNameKey.String(operation),
+// newSpanTemplates precomputes the span name and attributes for every operation.
+//
+// Span names follow the database semantic conventions: "{db.operation.name}
+// {target}", falling back to "{db.operation.name}" when there is no target. Only
+// the operations that act on the migrations table get it as their target; run
+// executes arbitrary migration SQL and drop targets the whole database, so
+// naming either after the migrations table would misreport what it touches.
+func newSpanTemplates(driverName, migrationsTable string) map[string]spanTemplate {
+	system := semconv.DBSystemNameKey.String(otelconv.DBSystemName(driverName))
+
+	templates := make(map[string]spanTemplate, 6)
+	for _, op := range []struct {
+		name             string
+		targetsMigrTable bool
+	}{
+		{opLock, false},
+		{opUnlock, false},
+		{opRun, false},
+		{opDrop, false},
+		{opSetVersion, true},
+		{opVersion, true},
+	} {
+		t := spanTemplate{
+			name:  op.name,
+			attrs: []attribute.KeyValue{system, semconv.DBOperationNameKey.String(op.name)},
+		}
+		if op.targetsMigrTable && migrationsTable != "" {
+			t.name = op.name + " " + migrationsTable
+			t.attrs = append(t.attrs, semconv.DBCollectionNameKey.String(migrationsTable))
+		}
+		templates[op.name] = t
 	}
+	return templates
 }
 
-func (d *OTelDriver) startSpan(ctx context.Context, name, operation string, extra ...attribute.KeyValue) (context.Context, trace.Span) {
-	attrs := append(d.attrs(operation), extra...)
-	return d.tracer.Start(ctx, name,
+// MigrationsTable forwards the wrapped driver's migrations table, so that
+// instrumentation metadata survives wrapping.
+func (d *OTelDriver) MigrationsTable() string {
+	return d.migrationsTable
+}
+
+// startSpan starts a CLIENT span for operation from its precomputed template.
+func (d *OTelDriver) startSpan(ctx context.Context, operation string, extra ...attribute.KeyValue) (context.Context, trace.Span) {
+	t := d.spans[operation]
+
+	attrs := t.attrs
+	if len(extra) > 0 {
+		attrs = make([]attribute.KeyValue, 0, len(t.attrs)+len(extra))
+		attrs = append(attrs, t.attrs...)
+		attrs = append(attrs, extra...)
+	}
+
+	return d.tracer.Start(ctx, t.name,
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(attrs...),
 	)
@@ -117,7 +168,8 @@ func RecordSpanError(span trace.Span, err error) {
 	span.SetStatus(codes.Error, redacted.Error())
 }
 
-// errorType returns a low cardinality value for the error.type attribute.
+// errorType returns a low cardinality value for the error.type attribute,
+// layering this package's lock sentinels over the shared classification.
 func errorType(err error) string {
 	var dbErr Error
 	if errors.As(err, &dbErr) && dbErr.OrigErr != nil {
@@ -128,12 +180,8 @@ func errorType(err error) string {
 		return "locked"
 	case errors.Is(err, ErrNotLocked):
 		return "not_locked"
-	case errors.Is(err, context.DeadlineExceeded):
-		return "timeout"
-	case errors.Is(err, context.Canceled):
-		return "canceled"
 	}
-	return "_OTHER"
+	return otelconv.ErrorType(err)
 }
 
 func endSpan(span trace.Span, err error) {
@@ -156,7 +204,14 @@ func (d *OTelDriver) Open(ctx context.Context, url string) (Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewOTelDriver(inner, d.driverName, d.opts...), nil
+	table := migrationsTableOf(inner)
+	return &OTelDriver{
+		driver:          inner,
+		driverName:      d.driverName,
+		tracer:          d.tracer,
+		migrationsTable: table,
+		spans:           newSpanTemplates(d.driverName, table),
+	}, nil
 }
 
 // Close delegates to the underlying driver without adding a span.
@@ -166,28 +221,28 @@ func (d *OTelDriver) Close(ctx context.Context) error {
 }
 
 func (d *OTelDriver) Lock(ctx context.Context) error {
-	ctx, span := d.startSpan(ctx, "db.lock", opLock)
+	ctx, span := d.startSpan(ctx, opLock)
 	err := d.driver.Lock(ctx)
 	endSpan(span, err)
 	return err
 }
 
 func (d *OTelDriver) Unlock(ctx context.Context) error {
-	ctx, span := d.startSpan(ctx, "db.unlock", opUnlock)
+	ctx, span := d.startSpan(ctx, opUnlock)
 	err := d.driver.Unlock(ctx)
 	endSpan(span, err)
 	return err
 }
 
 func (d *OTelDriver) Run(ctx context.Context, migration io.Reader) error {
-	ctx, span := d.startSpan(ctx, "db.run", opRun)
+	ctx, span := d.startSpan(ctx, opRun)
 	err := d.driver.Run(ctx, migration)
 	endSpan(span, err)
 	return err
 }
 
 func (d *OTelDriver) SetVersion(ctx context.Context, version int, dirty bool) error {
-	ctx, span := d.startSpan(ctx, "db.set_version", opSetVersion,
+	ctx, span := d.startSpan(ctx, opSetVersion,
 		attribute.Int("migrate.version", version),
 		attribute.Bool("migrate.dirty", dirty),
 	)
@@ -197,14 +252,14 @@ func (d *OTelDriver) SetVersion(ctx context.Context, version int, dirty bool) er
 }
 
 func (d *OTelDriver) Version(ctx context.Context) (int, bool, error) {
-	ctx, span := d.startSpan(ctx, "db.version", opVersion)
+	ctx, span := d.startSpan(ctx, opVersion)
 	version, dirty, err := d.driver.Version(ctx)
 	endSpan(span, err)
 	return version, dirty, err
 }
 
 func (d *OTelDriver) Drop(ctx context.Context) error {
-	ctx, span := d.startSpan(ctx, "db.drop", opDrop)
+	ctx, span := d.startSpan(ctx, opDrop)
 	err := d.driver.Drop(ctx)
 	endSpan(span, err)
 	return err

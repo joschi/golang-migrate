@@ -485,3 +485,13 @@ func quoteIdentifier(name string) string {
 	}
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
+
+var _ database.MigrationsTabler = (*Postgres)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (p *Postgres) MigrationsTable() string {
+	if p.config == nil {
+		return ""
+	}
+	return p.config.MigrationsTable
+}

@@ -408,3 +408,13 @@ func (m *Mongo) Unlock(ctx context.Context) error {
 		return nil
 	})
 }
+
+var _ database.MigrationsTabler = (*Mongo)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (m *Mongo) MigrationsTable() string {
+	if m.config == nil {
+		return ""
+	}
+	return m.config.MigrationsCollection
+}

@@ -319,3 +319,15 @@ func (n *Neo4j) ensureVersionConstraint(ctx context.Context) (err error) {
 	}
 	return nil
 }
+
+var _ database.MigrationsTabler = (*Neo4j)(nil)
+
+// MigrationsTable implements database.MigrationsTabler. Neo4j stores migration
+// state on nodes carrying a label rather than in a table, so the label is
+// reported as db.collection.name.
+func (n *Neo4j) MigrationsTable() string {
+	if n.config == nil {
+		return ""
+	}
+	return n.config.MigrationsLabel
+}

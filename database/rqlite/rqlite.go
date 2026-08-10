@@ -334,3 +334,13 @@ func parseConfigFromQuery(queryVals nurl.Values) (*Config, error) {
 
 	return &c, nil
 }
+
+var _ database.MigrationsTabler = (*Rqlite)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (r *Rqlite) MigrationsTable() string {
+	if r.config == nil {
+		return ""
+	}
+	return r.config.MigrationsTable
+}

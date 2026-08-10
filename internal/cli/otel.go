@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,28 +21,31 @@ import (
 // worse than dropping the trace.
 const otelShutdownTimeout = 5 * time.Second
 
-// otelEnvVars are the environment variables that opt this process into
-// exporting telemetry.
-//
-// Telemetry is off unless one of these is set. autoexport defaults to the OTLP
-// exporter when OTEL_TRACES_EXPORTER is unset, so initializing it
-// unconditionally would make every `migrate` invocation try to reach
-// localhost:4317/4318 and add latency plus error noise for users who never
-// asked for telemetry.
-var otelEnvVars = []string{
-	"OTEL_TRACES_EXPORTER",
-	"OTEL_METRICS_EXPORTER",
+// otlpEndpointEnvVars configure an OTLP destination. Setting one opts a signal
+// in even when its OTEL_*_EXPORTER variable is unset, since autoexport then
+// defaults to OTLP anyway.
+var otlpEndpointEnvVars = []string{
 	"OTEL_EXPORTER_OTLP_ENDPOINT",
 	"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
 	"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
 }
 
-// otelEnabled reports whether telemetry export was requested.
-func otelEnabled() bool {
-	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+// signalRequested reports whether export of one signal was asked for, where
+// exporterEnvVar is that signal's OTEL_*_EXPORTER variable.
+//
+// The check is per signal on purpose. autoexport defaults to the OTLP exporter
+// when a signal's variable is unset, so treating "any OTEL_* variable is set" as
+// a single process-wide switch would start an OTLP exporter for the *other*
+// signal too: `OTEL_TRACES_EXPORTER=console` alone would quietly open a
+// connection to localhost:4318 to ship metrics.
+func signalRequested(exporterEnvVar string) bool {
+	if sdkDisabled() {
 		return false
 	}
-	for _, key := range otelEnvVars {
+	if os.Getenv(exporterEnvVar) != "" {
+		return true
+	}
+	for _, key := range otlpEndpointEnvVars {
 		if os.Getenv(key) != "" {
 			return true
 		}
@@ -49,14 +53,22 @@ func otelEnabled() bool {
 	return false
 }
 
-// setupOTel installs global trace and meter providers when telemetry export has
-// been requested, and returns a shutdown function that flushes them. When no
-// telemetry is requested it returns a no-op shutdown and leaves the global
+// sdkDisabled reports whether OTEL_SDK_DISABLED turns telemetry off. The
+// specification defines it as a boolean, so the value is matched
+// case-insensitively.
+func sdkDisabled() bool {
+	return strings.EqualFold(os.Getenv("OTEL_SDK_DISABLED"), "true")
+}
+
+// setupOTel installs global trace and meter providers for the signals whose
+// export was requested, and returns a shutdown function that flushes them. When
+// no telemetry is requested it returns a no-op shutdown and leaves the global
 // providers untouched, so migrate stays entirely offline.
 func setupOTel(ctx context.Context, version string) func() {
-	noop := func() {}
-	if !otelEnabled() {
-		return noop
+	tracesOn := signalRequested("OTEL_TRACES_EXPORTER")
+	metricsOn := signalRequested("OTEL_METRICS_EXPORTER")
+	if !tracesOn && !metricsOn {
+		return func() {}
 	}
 
 	res, err := resource.New(ctx,
@@ -71,37 +83,34 @@ func setupOTel(ctx context.Context, version string) func() {
 		// resource.New returns a usable resource alongside non-fatal errors
 		// (e.g. schema URL conflicts), so report and continue.
 		otel.Handle(err)
-		if res == nil {
-			res = resource.Default()
-		}
 	}
 
 	var shutdowns []func(context.Context) error
 
-	if spanExporter, err := autoexport.NewSpanExporter(ctx); err != nil {
-		otel.Handle(err)
-	} else if !autoexport.IsNoneSpanExporter(spanExporter) {
-		tp := sdktrace.NewTracerProvider(
-			sdktrace.WithBatcher(spanExporter),
-			sdktrace.WithResource(res),
-		)
-		otel.SetTracerProvider(tp)
-		shutdowns = append(shutdowns, tp.Shutdown)
+	if tracesOn {
+		if spanExporter, err := autoexport.NewSpanExporter(ctx); err != nil {
+			otel.Handle(err)
+		} else if !autoexport.IsNoneSpanExporter(spanExporter) {
+			tp := sdktrace.NewTracerProvider(
+				sdktrace.WithBatcher(spanExporter),
+				sdktrace.WithResource(res),
+			)
+			otel.SetTracerProvider(tp)
+			shutdowns = append(shutdowns, tp.Shutdown)
+		}
 	}
 
-	if reader, err := autoexport.NewMetricReader(ctx); err != nil {
-		otel.Handle(err)
-	} else if !autoexport.IsNoneMetricReader(reader) {
-		mp := metric.NewMeterProvider(
-			metric.WithReader(reader),
-			metric.WithResource(res),
-		)
-		otel.SetMeterProvider(mp)
-		shutdowns = append(shutdowns, mp.Shutdown)
-	}
-
-	if len(shutdowns) == 0 {
-		return noop
+	if metricsOn {
+		if reader, err := autoexport.NewMetricReader(ctx); err != nil {
+			otel.Handle(err)
+		} else if !autoexport.IsNoneMetricReader(reader) {
+			mp := metric.NewMeterProvider(
+				metric.WithReader(reader),
+				metric.WithResource(res),
+			)
+			otel.SetMeterProvider(mp)
+			shutdowns = append(shutdowns, mp.Shutdown)
+		}
 	}
 
 	// OnceFunc because shutdown runs both from Main's defer and from the

@@ -189,14 +189,30 @@ sources this is where the download time is.
 
 #### Database driver spans (SpanKind: CLIENT)
 
+Span names follow the database semantic conventions: `{db.operation.name} {target}`,
+falling back to `{db.operation.name}` when there is no target. The target is the
+migrations table, so with the default table the names are as shown; a driver
+configured with `x-migrations-table=custom` reports `set_version custom`.
+
 | Span name | Method | Key attributes |
 |-----------|--------|----------------|
-| `db.lock` | Lock | `db.system.name`, `db.operation.name` |
-| `db.unlock` | Unlock | `db.system.name`, `db.operation.name` |
-| `db.run` | Run | `db.system.name`, `db.operation.name` |
-| `db.set_version` | SetVersion | `db.system.name`, `db.operation.name`, `migrate.version`, `migrate.dirty` |
-| `db.version` | Version | `db.system.name`, `db.operation.name` |
-| `db.drop` | Drop | `db.system.name`, `db.operation.name` |
+| `lock` | Lock | `db.system.name`, `db.operation.name` |
+| `unlock` | Unlock | `db.system.name`, `db.operation.name` |
+| `run` | Run | `db.system.name`, `db.operation.name` |
+| `set_version schema_migrations` | SetVersion | `db.system.name`, `db.operation.name`, `db.collection.name`, `migrate.version`, `migrate.dirty` |
+| `get_version schema_migrations` | Version | `db.system.name`, `db.operation.name`, `db.collection.name` |
+| `drop` | Drop | `db.system.name`, `db.operation.name` |
+
+Only the two version operations carry `db.collection.name`, and only they are
+named after the migrations table. `Run` executes arbitrary migration SQL, `Drop`
+targets the whole database, and `Lock`/`Unlock` are usually advisory locks, so
+naming those after the migrations table would misreport what they touch.
+
+A driver supplies its table by implementing the optional
+`database.MigrationsTabler` interface. All bundled drivers do, except the `stub`
+test driver; `neo4j` reports its node label, which is its equivalent of a
+collection. Drivers that do not implement it still get spans, named after the
+operation alone.
 
 #### Source driver spans (SpanKind: INTERNAL)
 
@@ -217,7 +233,7 @@ sources this is where the download time is.
 | `migrate.lock.duration` | Histogram | `s` | Duration of database lock acquisition |
 | `migrate.lock.failures` | Counter | `{failure}` | Failed lock acquisitions, including timeouts |
 
-**Common attributes:** `db.system.name`, `db.operation.name`, `migrate.source`, `migrate.direction`, `migrate.version`, `migrate.target_version`, `migrate.identifier`, `error.type`.
+**Common attributes:** `db.system.name`, `db.operation.name`, `db.collection.name`, `migrate.source`, `migrate.direction`, `migrate.version`, `migrate.target_version`, `migrate.identifier`, `error.type`.
 
 `migrate.migrations.failed` also carries `migrate.stage` (`run`,
 `set_version_dirty`, `set_version_clean`) so a broken migration can be told
@@ -265,15 +281,19 @@ m.Up(ctx)
 
 ### CLI
 
-The `migrate` binary emits **nothing** unless one of these environment variables
-is set, so existing invocations are unaffected and no connection to a collector
-is attempted:
+The `migrate` binary emits **nothing** unless asked, so existing invocations are
+unaffected and no connection to a collector is attempted. Traces and metrics are
+enabled **independently**: a signal is exported when its own exporter variable is
+set, or when an OTLP endpoint is configured.
 
 - `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` (e.g. `otlp`, `console`, `none`)
 - `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`
 
-Setting `OTEL_SDK_DISABLED=true` disables it regardless. All other standard
-`OTEL_*` variables (`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`,
+Enabling one signal never starts an exporter for the other, so
+`OTEL_TRACES_EXPORTER=console` prints spans without any metrics exporter trying
+to reach a collector. Setting `OTEL_SDK_DISABLED=true` disables everything.
+
+All other standard `OTEL_*` variables (`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`,
 `OTEL_EXPORTER_OTLP_PROTOCOL`, ...) are honoured. Telemetry is flushed before
 exit, including on error paths.
 
@@ -282,8 +302,8 @@ exit, including on error paths.
 OTEL_TRACES_EXPORTER=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
   migrate -path=./migrations -database "postgres://..." up
 
-# print spans to stdout
-OTEL_TRACES_EXPORTER=console OTEL_METRICS_EXPORTER=none \
+# print spans to stdout (metrics stay off — each signal is enabled separately)
+OTEL_TRACES_EXPORTER=console \
   migrate -path=./migrations -database "postgres://..." up
 ```
 

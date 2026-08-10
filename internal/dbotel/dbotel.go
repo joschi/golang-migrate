@@ -18,13 +18,11 @@ import (
 //
 // Pass the db.system.name attribute for the driver, e.g.
 // semconv.DBSystemNamePostgreSQL.
-func Options(system attribute.KeyValue, extra ...otelsql.Option) []otelsql.Option {
-	opts := make([]otelsql.Option, 0, 2+len(extra))
-	opts = append(opts,
+func Options(system attribute.KeyValue) []otelsql.Option {
+	return []otelsql.Option{
 		otelsql.WithAttributes(system),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			DisableQuery: true,
 		}),
-	)
-	return append(opts, extra...)
+	}
 }

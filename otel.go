@@ -99,102 +99,74 @@ type otelInstruments struct {
 	migrationBytesRead metric.Int64Counter
 }
 
-// newOtelInstruments creates metric instruments from the provided meter.
-// On any instrument creation error, the OTel global error handler is invoked
-// and the corresponding instrument is replaced with a no-op (the OTel API
-// guarantees no-op instruments are returned on error, so callers are safe).
+// counter creates an Int64Counter, reporting any creation error to the global
+// OTel error handler. The OTel API guarantees a usable no-op instrument on
+// error, so the result is always safe to use.
+func counter(meter metric.Meter, name, description, unit string) metric.Int64Counter {
+	c, err := meter.Int64Counter(name,
+		metric.WithDescription(description),
+		metric.WithUnit(unit),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+	return c
+}
+
+// histogram creates a Float64Histogram of seconds with explicit bucket
+// boundaries, reporting any creation error as counter does.
+func histogram(meter metric.Meter, name, description string, boundaries ...float64) metric.Float64Histogram {
+	h, err := meter.Float64Histogram(name,
+		metric.WithDescription(description),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(boundaries...),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+	return h
+}
+
+// newOtelInstruments creates the metric instruments from the provided meter.
 func newOtelInstruments(meter metric.Meter) otelInstruments {
-	applied, err := meter.Int64Counter(
-		"migrate.migrations.applied",
-		metric.WithDescription("Number of migrations successfully applied."),
-		metric.WithUnit("{migration}"),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	failed, err := meter.Int64Counter(
-		"migrate.migrations.failed",
-		metric.WithDescription("Number of migrations that failed to apply."),
-		metric.WithUnit("{migration}"),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	duration, err := meter.Float64Histogram(
-		"migrate.migration.run.duration",
-		metric.WithDescription("Execution duration of a single migration run against the database."),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	lockDuration, err := meter.Float64Histogram(
-		"migrate.lock.duration",
-		metric.WithDescription("Duration of database lock acquisition."),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	lockFailures, err := meter.Int64Counter(
-		"migrate.lock.failures",
-		metric.WithDescription("Number of failed database lock acquisitions, including timeouts."),
-		metric.WithUnit("{failure}"),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	bufferDuration, err := meter.Float64Histogram(
-		"migrate.migration.buffer.duration",
-		metric.WithDescription("Duration of reading a migration body from the source."),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	bytesRead, err := meter.Int64Counter(
-		"migrate.migration.source.read",
-		metric.WithDescription("Bytes read from the migration source."),
-		metric.WithUnit("By"),
-	)
-	if err != nil {
-		otel.Handle(err)
-	}
-
 	return otelInstruments{
-		migrationsApplied:       applied,
-		migrationsFailed:        failed,
-		migrationRunDuration:    duration,
-		lockDuration:            lockDuration,
-		lockFailures:            lockFailures,
-		migrationBufferDuration: bufferDuration,
-		migrationBytesRead:      bytesRead,
+		migrationsApplied: counter(meter,
+			"migrate.migrations.applied",
+			"Number of migrations successfully applied.",
+			"{migration}"),
+		migrationsFailed: counter(meter,
+			"migrate.migrations.failed",
+			"Number of migrations that failed to apply.",
+			"{migration}"),
+		migrationRunDuration: histogram(meter,
+			"migrate.migration.run.duration",
+			"Execution duration of a single migration run against the database.",
+			0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10),
+		lockDuration: histogram(meter,
+			"migrate.lock.duration",
+			"Duration of database lock acquisition.",
+			0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30),
+		lockFailures: counter(meter,
+			"migrate.lock.failures",
+			"Number of failed database lock acquisitions, including timeouts.",
+			"{failure}"),
+		migrationBufferDuration: histogram(meter,
+			"migrate.migration.buffer.duration",
+			"Duration of reading a migration body from the source.",
+			0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10),
+		migrationBytesRead: counter(meter,
+			"migrate.migration.source.read",
+			"Bytes read from the migration source.",
+			"By"),
 	}
 }
 
 // newTracer returns a tracer from cfg's TracerProvider.
 func newTracer(cfg config) trace.Tracer {
-	opts := []trace.TracerOption{trace.WithSchemaURL(otelconv.SchemaURL)}
-	if v := otelconv.Version(); v != "" {
-		opts = append(opts, trace.WithInstrumentationVersion(v))
-	}
-	return cfg.tracerProvider.Tracer(instrumentationName, opts...)
+	return otelconv.Tracer(cfg.tracerProvider, instrumentationName)
 }
 
 // newMeter returns a meter from cfg's MeterProvider.
 func newMeter(cfg config) metric.Meter {
-	opts := []metric.MeterOption{metric.WithSchemaURL(otelconv.SchemaURL)}
-	if v := otelconv.Version(); v != "" {
-		opts = append(opts, metric.WithInstrumentationVersion(v))
-	}
-	return cfg.meterProvider.Meter(instrumentationName, opts...)
+	return otelconv.Meter(cfg.meterProvider, instrumentationName)
 }

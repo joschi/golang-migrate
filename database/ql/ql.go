@@ -243,3 +243,13 @@ func (m *Ql) Version(ctx context.Context) (version int, dirty bool, err error) {
 	}
 	return version, dirty, nil
 }
+
+var _ database.MigrationsTabler = (*Ql)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (q *Ql) MigrationsTable() string {
+	if q.config == nil {
+		return ""
+	}
+	return q.config.MigrationsTable
+}

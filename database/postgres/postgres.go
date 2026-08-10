@@ -489,3 +489,13 @@ func (p *Postgres) ensureVersionTable(ctx context.Context) (err error) {
 
 	return nil
 }
+
+var _ database.MigrationsTabler = (*Postgres)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (p *Postgres) MigrationsTable() string {
+	if p.config == nil {
+		return ""
+	}
+	return p.config.MigrationsTable
+}

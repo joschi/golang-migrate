@@ -82,6 +82,33 @@ type Driver interface {
 	Drop(ctx context.Context) error
 }
 
+// MigrationsTabler is an optional interface a Driver may implement to report
+// the table or collection it keeps migration state in.
+//
+// OTelDriver uses it to populate the db.collection.name attribute and to build
+// span names of the form "{db.operation.name} {target}", as the database
+// semantic conventions prescribe. It is consulted only for operations that act
+// on that one table (reading and writing the version); Run executes arbitrary
+// migration SQL and Drop targets the whole database, so neither reports a
+// collection.
+//
+// Drivers that do not implement it still emit spans, named after the operation
+// alone.
+type MigrationsTabler interface {
+	// MigrationsTable returns the table or collection holding migration state,
+	// or an empty string when that is unknown or not applicable.
+	MigrationsTable() string
+}
+
+// migrationsTableOf returns the migrations table reported by driver, or an empty
+// string if it does not report one.
+func migrationsTableOf(driver Driver) string {
+	if t, ok := driver.(MigrationsTabler); ok {
+		return t.MigrationsTable()
+	}
+	return ""
+}
+
 // Open returns a new driver instance.
 func Open(ctx context.Context, url string) (Driver, error) {
 	scheme, err := iurl.SchemeFromURL(url)

@@ -508,3 +508,13 @@ func readBool(input string) (value bool, valid bool) {
 	// Not a valid bool value
 	return
 }
+
+var _ database.MigrationsTabler = (*Mysql)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (m *Mysql) MigrationsTable() string {
+	if m.config == nil {
+		return ""
+	}
+	return m.config.MigrationsTable
+}

@@ -3,10 +3,15 @@
 package otelconv
 
 import (
+	"context"
+	"errors"
+	"os"
 	"runtime/debug"
 	"sync"
 
+	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // SchemaURL is the semantic convention schema URL that the emitted telemetry
@@ -26,9 +31,6 @@ var version = sync.OnceValue(func() string {
 		return info.Main.Version
 	}
 	for _, dep := range info.Deps {
-		if dep == nil {
-			continue
-		}
 		if dep.Path == modulePath {
 			if dep.Replace != nil && dep.Replace.Version != "" {
 				return dep.Replace.Version
@@ -39,11 +41,48 @@ var version = sync.OnceValue(func() string {
 	return ""
 })
 
-// Version returns the migrate module version for use as the instrumentation
-// scope version. It returns an empty string when the version cannot be
-// determined (for example in tests, or when built without module info), in
-// which case callers should omit the scope version entirely.
-func Version() string { return version() }
+// Tracer returns a tracer for scopeName from tp, carrying this module's schema
+// URL and, when it can be determined, its version.
+func Tracer(tp trace.TracerProvider, scopeName string) trace.Tracer {
+	opts := []trace.TracerOption{trace.WithSchemaURL(SchemaURL)}
+	if v := version(); v != "" {
+		opts = append(opts, trace.WithInstrumentationVersion(v))
+	}
+	return tp.Tracer(scopeName, opts...)
+}
+
+// Meter returns a meter for scopeName from mp, carrying this module's schema URL
+// and, when it can be determined, its version.
+func Meter(mp metric.MeterProvider, scopeName string) metric.Meter {
+	opts := []metric.MeterOption{metric.WithSchemaURL(SchemaURL)}
+	if v := version(); v != "" {
+		opts = append(opts, metric.WithInstrumentationVersion(v))
+	}
+	return mp.Meter(scopeName, opts...)
+}
+
+// ErrorTypeOther is the error.type value for errors with no more specific
+// classification, as defined by the semantic conventions.
+const ErrorTypeOther = "_OTHER"
+
+// ErrorType returns a low cardinality error.type value for err. It classifies
+// the causes that are meaningful for every signal; callers with their own
+// sentinels layer those on top before falling back here.
+func ErrorType(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, os.ErrNotExist):
+		return "not_found"
+	case errors.Is(err, os.ErrPermission):
+		return "permission_denied"
+	}
+	return ErrorTypeOther
+}
 
 // dbSystemNameYugabyteDB is not in the semantic conventions registry; the
 // conventions allow a lowercase name for unlisted systems.

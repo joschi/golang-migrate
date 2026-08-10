@@ -322,3 +322,13 @@ func (m *Sqlite) Version(ctx context.Context) (version int, dirty bool, err erro
 	}
 	return version, dirty, nil
 }
+
+var _ database.MigrationsTabler = (*Sqlite)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (s *Sqlite) MigrationsTable() string {
+	if s.config == nil {
+		return ""
+	}
+	return s.config.MigrationsTable
+}

@@ -24,7 +24,10 @@ type OTelDriver struct {
 	driver     Driver
 	sourceName string
 	tracer     trace.Tracer
-	opts       []OTelOption
+
+	// sourceAttr is the migrate.source attribute, fixed once the driver is
+	// wrapped.
+	sourceAttr attribute.KeyValue
 }
 
 // OTelOption configures the OpenTelemetry driver wrapper.
@@ -58,28 +61,14 @@ func newOTelConfig(opts []OTelOption) otelConfig {
 	return cfg
 }
 
-func newTracer(cfg otelConfig) trace.Tracer {
-	tracerOpts := []trace.TracerOption{trace.WithSchemaURL(otelconv.SchemaURL)}
-	if v := otelconv.Version(); v != "" {
-		tracerOpts = append(tracerOpts, trace.WithInstrumentationVersion(v))
-	}
-	return cfg.tracerProvider.Tracer(tracerName, tracerOpts...)
-}
-
 // NewOTelDriver wraps driver with OpenTelemetry instrumentation.
 // sourceName populates the migrate.source attribute on every span.
 func NewOTelDriver(driver Driver, sourceName string, opts ...OTelOption) Driver {
 	return &OTelDriver{
 		driver:     driver,
 		sourceName: sourceName,
-		tracer:     newTracer(newOTelConfig(opts)),
-		opts:       opts,
-	}
-}
-
-func (d *OTelDriver) attrs() []attribute.KeyValue {
-	return []attribute.KeyValue{
-		attribute.String("migrate.source", d.sourceName),
+		tracer:     otelconv.Tracer(newOTelConfig(opts).tracerProvider, tracerName),
+		sourceAttr: attribute.String("migrate.source", sourceName),
 	}
 }
 
@@ -98,7 +87,12 @@ func (d *OTelDriver) Open(ctx context.Context, url string) (Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewOTelDriver(inner, d.sourceName, d.opts...), nil
+	return &OTelDriver{
+		driver:     inner,
+		sourceName: d.sourceName,
+		tracer:     d.tracer,
+		sourceAttr: d.sourceAttr,
+	}, nil
 }
 
 // Close delegates to the underlying driver without adding a span.
@@ -128,7 +122,7 @@ func (d *OTelDriver) Next(ctx context.Context, version uint) (uint, error) {
 func endReadSpan(span trace.Span, err error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		span.RecordError(err)
-		span.SetAttributes(semconv.ErrorTypeKey.String("_OTHER"))
+		span.SetAttributes(semconv.ErrorTypeKey.String(otelconv.ErrorType(err)))
 		span.SetStatus(codes.Error, err.Error())
 	}
 	span.End()
@@ -137,7 +131,7 @@ func endReadSpan(span trace.Span, err error) {
 func (d *OTelDriver) ReadUp(ctx context.Context, version uint) (io.ReadCloser, string, error) {
 	ctx, span := d.tracer.Start(ctx, "source.read_up",
 		trace.WithSpanKind(trace.SpanKindInternal),
-		trace.WithAttributes(append(d.attrs(), attribute.Int64("migrate.version", int64(version)))...),
+		trace.WithAttributes(d.sourceAttr, attribute.Int64("migrate.version", int64(version))),
 	)
 	r, identifier, err := d.driver.ReadUp(ctx, version)
 	endReadSpan(span, err)
@@ -147,7 +141,7 @@ func (d *OTelDriver) ReadUp(ctx context.Context, version uint) (io.ReadCloser, s
 func (d *OTelDriver) ReadDown(ctx context.Context, version uint) (io.ReadCloser, string, error) {
 	ctx, span := d.tracer.Start(ctx, "source.read_down",
 		trace.WithSpanKind(trace.SpanKindInternal),
-		trace.WithAttributes(append(d.attrs(), attribute.Int64("migrate.version", int64(version)))...),
+		trace.WithAttributes(d.sourceAttr, attribute.Int64("migrate.version", int64(version))),
 	)
 	r, identifier, err := d.driver.ReadDown(ctx, version)
 	endReadSpan(span, err)

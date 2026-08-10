@@ -257,3 +257,13 @@ func btoi(v bool) int {
 func itob(v int) bool {
 	return v != 0
 }
+
+var _ database.MigrationsTabler = (*Firebird)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (f *Firebird) MigrationsTable() string {
+	if f.config == nil {
+		return ""
+	}
+	return f.config.MigrationsTable
+}

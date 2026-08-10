@@ -411,3 +411,13 @@ func getMSITokenProvider(resource string) (func() (string, error), error) {
 func getAADResourceFromServerUri(purl *nurl.URL) string {
 	return fmt.Sprintf("%s%s", "https://", strings.Join(strings.Split(purl.Hostname(), ".")[1:], "."))
 }
+
+var _ database.MigrationsTabler = (*SQLServer)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (s *SQLServer) MigrationsTable() string {
+	if s.config == nil {
+		return ""
+	}
+	return s.config.MigrationsTable
+}

@@ -316,3 +316,13 @@ func quoteIdentifier(name string) string {
 	}
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
+
+var _ database.MigrationsTabler = (*ClickHouse)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (c *ClickHouse) MigrationsTable() string {
+	if c.config == nil {
+		return ""
+	}
+	return c.config.MigrationsTable
+}

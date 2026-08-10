@@ -374,3 +374,13 @@ func (p *Snowflake) ensureVersionTable(ctx context.Context) (err error) {
 
 	return nil
 }
+
+var _ database.MigrationsTabler = (*Snowflake)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (s *Snowflake) MigrationsTable() string {
+	if s.config == nil {
+		return ""
+	}
+	return s.config.MigrationsTable
+}

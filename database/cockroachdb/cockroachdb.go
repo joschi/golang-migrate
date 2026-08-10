@@ -364,3 +364,13 @@ func (c *CockroachDb) ensureLockTable(ctx context.Context) error {
 
 	return nil
 }
+
+var _ database.MigrationsTabler = (*CockroachDb)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (c *CockroachDb) MigrationsTable() string {
+	if c.config == nil {
+		return ""
+	}
+	return c.config.MigrationsTable
+}

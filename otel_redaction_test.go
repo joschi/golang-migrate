@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4/database"
 	dStub "github.com/golang-migrate/migrate/v4/database/stub"
+	"github.com/golang-migrate/migrate/v4/source"
 	sStub "github.com/golang-migrate/migrate/v4/source/stub"
 )
 
@@ -108,7 +110,7 @@ func TestOtelErrorTypeAttribute(t *testing.T) {
 
 	var found bool
 	for _, s := range exp.GetSpans().Snapshots() {
-		if s.Name() != "db.run" {
+		if s.Name() != "run" {
 			continue
 		}
 		for _, a := range s.Attributes() {
@@ -117,7 +119,7 @@ func TestOtelErrorTypeAttribute(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, found, "db.run span must carry error.type on failure")
+	assert.True(t, found, "run span must carry error.type on failure")
 }
 
 // TestOtelNoOkStatus verifies no span status is set to Ok: the specification
@@ -241,9 +243,9 @@ func TestOtelVersionAndCloseAreTraced(t *testing.T) {
 		if s.Name() == "migrate.version" {
 			found = true
 		}
-		if s.Name() == "db.version" {
+		if s.Name() == "get_version" {
 			assert.True(t, s.Parent().SpanID().IsValid(),
-				"db.version must not be an orphan root span")
+				"get_version must not be an orphan root span")
 		}
 	}
 	assert.True(t, found, "Version must emit a span")
@@ -274,4 +276,61 @@ func TestRedactError(t *testing.T) {
 	plain := errors.New("not a database error")
 	assert.Equal(t, plain, database.RedactError(plain))
 	assert.NoError(t, database.RedactError(nil))
+}
+
+// TestOtelAttrsInitializedByEveryConstructor guards the cached attribute set:
+// it is built by initOTelAttrs, so a constructor that forgot to call it would
+// silently emit spans and metrics with no attributes at all.
+func TestOtelAttrsInitializedByEveryConstructor(t *testing.T) {
+	ctx := context.Background()
+
+	newStubs := func(t *testing.T) (source.Driver, database.Driver) {
+		t.Helper()
+		src, err := (&sStub.Stub{}).Open(ctx, "stub://")
+		require.NoError(t, err)
+		src.(*sStub.Stub).Migrations = sourceStubMigrations
+		db, err := (&dStub.Stub{}).Open(ctx, "stub://")
+		require.NoError(t, err)
+		return src, db
+	}
+
+	build := map[string]func(t *testing.T) *Migrate{
+		"New": func(t *testing.T) *Migrate {
+			m, err := New(ctx, "stub://", "stub://")
+			require.NoError(t, err)
+			return m
+		},
+		"NewWithDatabaseInstance": func(t *testing.T) *Migrate {
+			_, db := newStubs(t)
+			m, err := NewWithDatabaseInstance(ctx, "stub://", "stub", db)
+			require.NoError(t, err)
+			return m
+		},
+		"NewWithSourceInstance": func(t *testing.T) *Migrate {
+			src, _ := newStubs(t)
+			m, err := NewWithSourceInstance(ctx, "stub", src, "stub://")
+			require.NoError(t, err)
+			return m
+		},
+		"NewWithInstance": func(t *testing.T) *Migrate {
+			src, db := newStubs(t)
+			m, err := NewWithInstance(ctx, "stub", src, "stub", db)
+			require.NoError(t, err)
+			return m
+		},
+	}
+
+	for name, fn := range build {
+		t.Run(name, func(t *testing.T) {
+			m := fn(t)
+			require.NotEmpty(t, m.otelAttrs(), "%s did not call initOTelAttrs", name)
+			assert.NotNil(t, m.otelMetricAttrs, "%s left otelMetricAttrs nil", name)
+
+			// otelAttrsWith must never hand back the shared backing array.
+			base := m.otelAttrs()
+			got := m.otelAttrsWith(attribute.String("extra", "v"))
+			assert.Len(t, got, len(base)+1)
+			assert.Equal(t, base, m.otelAttrs(), "otelAttrsWith mutated the shared attributes")
+		})
+	}
 }

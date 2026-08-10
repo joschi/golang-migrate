@@ -337,3 +337,13 @@ func cleanStatements(migration []byte) ([]string, error) {
 	}
 	return stmts, nil
 }
+
+var _ database.MigrationsTabler = (*Spanner)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (s *Spanner) MigrationsTable() string {
+	if s.config == nil {
+		return ""
+	}
+	return s.config.MigrationsTable
+}

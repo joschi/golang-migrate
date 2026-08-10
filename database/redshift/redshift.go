@@ -338,3 +338,13 @@ func (p *Redshift) ensureVersionTable(ctx context.Context) (err error) {
 	}
 	return nil
 }
+
+var _ database.MigrationsTabler = (*Redshift)(nil)
+
+// MigrationsTable implements database.MigrationsTabler.
+func (r *Redshift) MigrationsTable() string {
+	if r.config == nil {
+		return ""
+	}
+	return r.config.MigrationsTable
+}
