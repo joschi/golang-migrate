@@ -19,7 +19,6 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gobuffalo/here v0.6.7
 	github.com/google/go-github/v90 v90.0.0
-	github.com/google/go-github/v90 v90.0.0
 	github.com/jackc/pgconn v1.14.3
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.10.0
@@ -171,7 +170,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	gotest.tools/gotestsum v1.13.0 // indirect
