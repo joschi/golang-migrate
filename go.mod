@@ -35,7 +35,7 @@ require (
 	github.com/snowflakedb/gosnowflake/v2 v2.1.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.44.0
-	gitlab.com/gitlab-org/api/client-go/v2 v2.56.0
+	gitlab.com/gitlab-org/api/client-go/v2 v2.57.0
 	go.mongodb.org/mongo-driver/v2 v2.8.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.70.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.70.0
