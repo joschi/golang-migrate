@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v5/source"
-	gh "github.com/golang-migrate/migrate/v5/source/github"
+	gh "github.com/golang-migrate/migrate/source/github/v5"
 
 	"github.com/google/go-github/v90/github"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
