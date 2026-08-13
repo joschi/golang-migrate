@@ -15,7 +15,7 @@ import (
 	_ "github.com/lib/pq"
 
 	dt "github.com/golang-migrate/migrate/v5/database/testing"
-	"github.com/golang-migrate/migrate/v5/dktesting"
+	"github.com/golang-migrate/migrate/dktesting/v5"
 
 	_ "github.com/golang-migrate/migrate/v5/source/file"
 )

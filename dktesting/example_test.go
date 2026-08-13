@@ -6,7 +6,7 @@ import (
 )
 
 import (
-	"github.com/golang-migrate/migrate/v5/dktesting"
+	"github.com/golang-migrate/migrate/dktesting/v5"
 )
 
 func ExampleParallelTest() {

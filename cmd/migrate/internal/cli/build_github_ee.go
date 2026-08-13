@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/source/github_ee"
+	_ "github.com/golang-migrate/migrate/source/github_ee/v5"
 )

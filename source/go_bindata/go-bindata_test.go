@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v5/source/go_bindata/testdata"
+	"github.com/golang-migrate/migrate/source/go_bindata/v5/testdata"
 	st "github.com/golang-migrate/migrate/v5/source/testing"
 )
 

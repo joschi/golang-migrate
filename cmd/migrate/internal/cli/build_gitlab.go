@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/source/gitlab"
+	_ "github.com/golang-migrate/migrate/source/gitlab/v5"
 )

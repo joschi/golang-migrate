@@ -2,5 +2,15 @@ go 1.26.5
 
 use (
 	.
+	./dktesting
+	./source/aws_s3
+	./source/bitbucket
+	./source/gitea
 	./source/github
+	./source/github_ee
+	./source/gitlab
+	./source/go_bindata
+	./source/godoc_vfs
+	./source/google_cloud_storage
+	./source/pkger
 )

@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/source/godoc_vfs"
+	_ "github.com/golang-migrate/migrate/source/godoc_vfs/v5"
 )
