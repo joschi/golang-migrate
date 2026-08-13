@@ -1,7 +1,12 @@
 SOURCE ?= file go_bindata github github_ee bitbucket aws_s3 google_cloud_storage godoc_vfs gitlab gitea
 DATABASE ?= postgres mysql redshift cassandra spanner cockroachdb yugabytedb clickhouse mongodb sqlserver firebird neo4j pgx5 rqlite couchbase
 DATABASE_TEST ?= $(DATABASE) sqlite sqlite3 sqlcipher duckdb
-VERSION ?= $(shell git describe --tags 2>/dev/null | cut -c 2-)
+# A release puts 33 directory-prefixed tags on the same commit as the root one,
+# and `git describe` picked those first -- `cut -c 2-` then served
+# "md/migrate/v5.1.0" as the version. --match narrows it to the root tag, and
+# sed strips only a real leading v. Affects `make build*` only: GoReleaser
+# derives its own version (see RELEASING.md).
+VERSION ?= $(shell git describe --tags --match 'v[0-9]*' 2>/dev/null | sed 's/^v//')
 TEST_FLAGS ?=
 REPO_OWNER ?= $(shell cd .. && basename "$$(pwd)")
 COVERAGE_DIR ?= .coverage
@@ -111,6 +116,11 @@ echo-source:
 echo-database:
 	@echo "$(DATABASE)"
 
+# The version baked into `make build*` binaries. Worth being able to read back:
+# a bad derivation is otherwise invisible until a binary ships carrying it.
+echo-version:
+	@echo "$(VERSION)"
+
 
 # The repository is a Go workspace with one module per driver. Most targets
 # have to run once per module rather than once over ./..., which does not span
@@ -126,7 +136,8 @@ endef
 
 .PHONY: build build-docker build-cli clean test-short test test-with-flags html-coverage \
         restore-import-paths rewrite-import-paths list-external-deps release lint tidy \
-		docs kill-docs open-docs kill-orphaned-docker-containers echo-source echo-database
+		docs kill-docs open-docs kill-orphaned-docker-containers echo-source echo-database \
+		echo-version
 
 SHELL = /bin/sh
 RAND = $(shell echo $$RANDOM)

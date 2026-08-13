@@ -90,6 +90,13 @@ The practical consequences during development:
 3. GoReleaser fires on the plain `v5.1.0` tag and publishes the CLI binaries,
    the deb packages and the Docker images. Nothing else is needed.
 
+   It is told which tag it is releasing (`GORELEASER_CURRENT_TAG`) rather than
+   discovering it: with 33 module tags on the same commit, `git describe` finds
+   one of those first. The `Makefile`'s `VERSION` guards against the same thing
+   separately — it only affects binaries from `make build*` and the plain
+   `Dockerfile`, never the artifacts GoReleaser publishes. `make echo-version`
+   prints it.
+
 ## What a breaking change costs
 
 Because the modules share one version, a breaking change anywhere forces a

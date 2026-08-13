@@ -150,6 +150,12 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 33 directory-prefixed module tags sit on this same commit, and
+          # `git describe --tags --abbrev=0` returns one of those, not the root
+          # tag. Name the tag that triggered this run instead of letting the
+          # version be discovered -- it decides the Docker tags, the release
+          # name and the version compiled into the binaries.
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
 
       - run: gem install package_cloud
       - run: package_cloud push golang-migrate/migrate/ubuntu/bionic dist/migrate.linux-amd64.deb
