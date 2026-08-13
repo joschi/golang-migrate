@@ -116,8 +116,8 @@ __[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v5)__
 ```go
 import (
     "github.com/golang-migrate/migrate/v5"
-    _ "github.com/golang-migrate/migrate/v5/database/postgres"
-    _ "github.com/golang-migrate/migrate/v5/source/github"
+    _ "github.com/golang-migrate/migrate/database/postgres/v5"
+    _ "github.com/golang-migrate/migrate/source/github/v5"
 )
 
 func main() {
@@ -135,7 +135,7 @@ import (
     "database/sql"
     _ "github.com/lib/pq"
     "github.com/golang-migrate/migrate/v5"
-    "github.com/golang-migrate/migrate/v5/database/postgres"
+    "github.com/golang-migrate/migrate/database/postgres/v5"
     _ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
@@ -353,7 +353,8 @@ Check out [migradaptor](https://github.com/musinit/migradaptor/).
 Version | Supported? | Import | Notes
 --------|------------|--------|------
 **master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v5"` | New features and bug fixes arrive here first |
-**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v5"` | Used for stable releases |
+**v5** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v5"` | Used for stable releases. Every driver is a separate module, e.g. `import "github.com/golang-migrate/migrate/database/postgres/v5"` |
+**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Maintenance only. See [MIGRATING_TO_V5.md](MIGRATING_TO_V5.md) |
 **v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
 
 ## Development and Contributing

@@ -30,7 +30,7 @@ import (
     
     _ "github.com/go-sql-driver/mysql"
     "github.com/golang-migrate/migrate/v5"
-    "github.com/golang-migrate/migrate/v5/database/mysql"
+    "github.com/golang-migrate/migrate/database/mysql/v5"
     _ "github.com/golang-migrate/migrate/v5/source/file"
 )
 

@@ -5,49 +5,90 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    name: lint
+  # The repository is a Go workspace of one module per driver. The jobs below
+  # fan out over the modules discovered here; `go list ./...` does not span
+  # nested workspace modules, so discovery has to go through `go list -m`.
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - id: list
+        run: |
+          echo "modules=$(go list -m -f '{{.Dir}}' | sed "s|^$PWD/||;s|^$PWD$|.|" | jq -Rsc 'split("\n") | map(select(length > 0))')" >> "$GITHUB_OUTPUT"
+
+  lint:
+    name: lint (${{ matrix.module }})
+    needs: [discover]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      # The workspace stays active: it is what resolves the intra-repo
+      # dependencies while the v5 tags do not exist yet.
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
+          working-directory: ${{ matrix.module }}
 
   test:
+    name: test (${{ matrix.module }})
+    needs: [discover]
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        go: ["1.26.x"]
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.go }}
-
+          go-version: "1.26.x"
       - name: Run test
-        run: make test COVERAGE_DIR=/tmp/coverage
+        working-directory: ${{ matrix.module }}
+        run: go test -race -count=1 -timeout 20m ./...
 
-#      - name: Send goveralls coverage
-#        uses: shogo82148/actions-goveralls@v1
-#        with:
-#          path-to-profile: /tmp/coverage/combined.txt
-#          flag-name: Go-${{ matrix.go }}
-#          parallel: true
-
-#  check-coverage:
-#    name: Check coverage
-#    needs: [test]
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: shogo82148/actions-goveralls@v1
-#        with:
-#          parallel-finished: true
+  # Guards the failure mode of a Go workspace: go.work satisfies an import even
+  # when the module's own go.mod is missing the require, so a module can look
+  # fine in CI and be unbuildable for anyone who depends on it alone.
+  #
+  # Intra-repo requires are deliberately absent between releases (see
+  # RELEASING.md), so today this only proves out the external dependency set.
+  # Once v5.0.0 is tagged, drop continue-on-error and this becomes the real
+  # guard.
+  tidy-check:
+    name: tidy-check (${{ matrix.module }})
+    needs: [discover]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: go mod tidy -diff
+        working-directory: ${{ matrix.module }}
+        run: go mod tidy -diff
+      - name: build without the workspace
+        working-directory: ${{ matrix.module }}
+        run: go build ./...
 
   goreleaser:
     name: Release a new version

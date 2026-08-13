@@ -79,7 +79,7 @@ import (
 	"log"
 
 	"github.com/golang-migrate/migrate/v5"
-	_ "github.com/golang-migrate/migrate/v5/database/neo4j"
+	_ "github.com/golang-migrate/migrate/database/neo4j/v5"
 	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 

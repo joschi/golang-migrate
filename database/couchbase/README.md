@@ -45,7 +45,7 @@ import (
     "context"
     "github.com/couchbase/gocb/v2"
     "github.com/golang-migrate/migrate/v5"
-    "github.com/golang-migrate/migrate/v5/database/couchbase"
+    "github.com/golang-migrate/migrate/database/couchbase/v5"
     _ "github.com/golang-migrate/migrate/v5/source/file"
 )
 

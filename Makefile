@@ -33,17 +33,21 @@ test-short:
 	make test-with-flags --ignore-errors TEST_FLAGS='-short'
 
 
+# Each module writes its own coverage profile: they are separate builds, so a
+# single shared profile would just be overwritten module by module.
 test:
 	@-rm -r $(COVERAGE_DIR)
-	@mkdir $(COVERAGE_DIR)
-	make test-with-flags TEST_FLAGS='-v -race -covermode atomic -coverprofile $$(COVERAGE_DIR)/combined.txt -bench=. -benchmem -timeout 20m'
+	@mkdir -p $(COVERAGE_DIR)
+	$(call foreach_module, go test -v -race -covermode atomic \
+		-coverprofile "$(CURDIR)/$(COVERAGE_DIR)/$$(echo "$${dir##$(CURDIR)/}" | tr / -).txt" \
+		-bench=. -benchmem -timeout 20m ./...)
 
 
 test-with-flags:
 	@echo SOURCE: $(SOURCE)
 	@echo DATABASE_TEST: $(DATABASE_TEST)
 
-	@go test $(TEST_FLAGS) ./...
+	$(call foreach_module, go test $(TEST_FLAGS) ./...)
 
 
 kill-orphaned-docker-containers:
@@ -55,16 +59,17 @@ html-coverage:
 
 
 list-external-deps:
-	$(call external_deps,'.')
-	$(call external_deps,'./cmd/migrate/...')
+	$(call foreach_module, go list -f '{{join .Deps "\n"}}' ./... | grep -v github.com/$(REPO_OWNER)/migrate | sort -u | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}')
 
-	$(foreach v, $(SOURCE), $(call external_deps,'./source/$(v)/...'))
-	$(call external_deps,'./source/testing/...')
-	$(call external_deps,'./source/stub/...')
 
-	$(foreach v, $(DATABASE), $(call external_deps,'./database/$(v)/...'))
-	$(call external_deps,'./database/testing/...')
-	$(call external_deps,'./database/stub/...')
+lint:
+	$(call foreach_module, golangci-lint run)
+
+
+# go mod tidy cannot run per module while the intra-repo requires are absent;
+# see RELEASING.md. Syncing the workspace is the equivalent for day-to-day use.
+tidy:
+	go work sync
 
 
 restore-import-paths:
@@ -92,10 +97,13 @@ open-docs:
 	open http://localhost:6064/pkg/github.com/$(REPO_OWNER)/migrate
 
 
-# example: make release V=0.0.0
+# Every module is released together at one version, and Go resolves nested
+# modules only through prefixed tags, so a release is ~34 tags on one commit.
+# See RELEASING.md.
+#
+# example: make release V=5.0.0
 release:
-	git tag v$(V)
-	@read -p "Press enter to confirm and push to origin ..." && git push origin v$(V)
+	./scripts/tag-release.sh $(V)
 
 echo-source:
 	@echo "$(SOURCE)"
@@ -104,14 +112,20 @@ echo-database:
 	@echo "$(DATABASE)"
 
 
-define external_deps
-	@echo '-- $(1)';  go list -f '{{join .Deps "\n"}}' $(1) | grep -v github.com/$(REPO_OWNER)/migrate | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}'
+# The repository is a Go workspace with one module per driver. Most targets
+# have to run once per module rather than once over ./..., which does not span
+# nested modules.
+define foreach_module
+	@go list -m -f '{{.Dir}}' | while read -r dir; do \
+		echo "-- $${dir##$(CURDIR)/}"; \
+		( cd "$$dir" && $(1) ) || exit 1; \
+	done
 
 endef
 
 
 .PHONY: build build-docker build-cli clean test-short test test-with-flags html-coverage \
-        restore-import-paths rewrite-import-paths list-external-deps release \
+        restore-import-paths rewrite-import-paths list-external-deps release lint tidy \
 		docs kill-docs open-docs kill-orphaned-docker-containers echo-source echo-database
 
 SHELL = /bin/sh

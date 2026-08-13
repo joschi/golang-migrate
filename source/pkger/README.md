@@ -9,8 +9,8 @@ import (
 	"github.com/golang-migrate/migrate/v5"
 	"github.com/markbates/pkger"
 
-	_ "github.com/golang-migrate/migrate/v5/database/postgres"
-	_ "github.com/golang-migrate/migrate/v5/source/pkger"
+	_ "github.com/golang-migrate/migrate/database/postgres/v5"
+	_ "github.com/golang-migrate/migrate/source/pkger/v5"
 	_ "github.com/lib/pq"
 )
 

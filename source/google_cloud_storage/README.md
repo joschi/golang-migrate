@@ -5,7 +5,7 @@
 
 ```go
 import (
-  _ "github.com/golang-migrate/migrate/v5/source/google_cloud_storage"
+  _ "github.com/golang-migrate/migrate/source/google_cloud_storage/v5"
  )
  ```
 

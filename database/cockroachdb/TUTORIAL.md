@@ -123,7 +123,7 @@ import (
 	"log"
 
 	"github.com/golang-migrate/migrate/v5"
-	_ "github.com/golang-migrate/migrate/v5/database/cockroachdb"
+	_ "github.com/golang-migrate/migrate/database/cockroachdb/v5"
 	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
