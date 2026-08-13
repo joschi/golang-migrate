@@ -10,8 +10,8 @@ import (
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 
-	dt "github.com/golang-migrate/migrate/v5/database/testing"
 	"github.com/golang-migrate/migrate/dktesting/v5"
+	dt "github.com/golang-migrate/migrate/v5/database/testing"
 
 	_ "github.com/golang-migrate/migrate/v5/source/file"
 )

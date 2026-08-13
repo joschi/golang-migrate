@@ -17,9 +17,9 @@ import (
 
 	"github.com/golang-migrate/migrate/v5"
 
+	"github.com/golang-migrate/migrate/dktesting/v5"
 	"github.com/golang-migrate/migrate/v5/database"
 	dt "github.com/golang-migrate/migrate/v5/database/testing"
-	"github.com/golang-migrate/migrate/dktesting/v5"
 	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 

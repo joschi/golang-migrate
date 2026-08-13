@@ -5,8 +5,8 @@ import (
 	"embed"
 	"log"
 
-	"github.com/golang-migrate/migrate/v5"
 	_ "github.com/golang-migrate/migrate/database/postgres/v5"
+	"github.com/golang-migrate/migrate/v5"
 	"github.com/golang-migrate/migrate/v5/source/iofs"
 )
 
