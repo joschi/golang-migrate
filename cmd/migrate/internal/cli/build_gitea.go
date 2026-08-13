@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v4/source/gitea"
+	_ "github.com/golang-migrate/migrate/v5/source/gitea"
 )

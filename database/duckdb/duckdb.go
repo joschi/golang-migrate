@@ -14,9 +14,9 @@ import (
 	"github.com/XSAM/otelsql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/database/dbotel"
+	"github.com/golang-migrate/migrate/v5"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/database/dbotel"
 
 	_ "github.com/duckdb/duckdb-go/v2"
 )

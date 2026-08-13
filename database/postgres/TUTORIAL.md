@@ -128,9 +128,9 @@ Here is a very simple app running migrations for the above configuration:
 import (
 	"log"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v5"
+	_ "github.com/golang-migrate/migrate/v5/database/postgres"
+	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
 func main() {

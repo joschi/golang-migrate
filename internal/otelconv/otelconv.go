@@ -20,7 +20,7 @@ const SchemaURL = semconv.SchemaURL
 
 // modulePath is the module whose version is reported as the instrumentation
 // scope version.
-const modulePath = "github.com/golang-migrate/migrate/v4"
+const modulePath = "github.com/golang-migrate/migrate/v5"
 
 var version = sync.OnceValue(func() string {
 	info, ok := debug.ReadBuildInfo()

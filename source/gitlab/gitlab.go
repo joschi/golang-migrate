@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang-migrate/migrate/v4/source"
+	"github.com/golang-migrate/migrate/v5/source"
 	gitlab "gitlab.com/gitlab-org/api/client-go/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )

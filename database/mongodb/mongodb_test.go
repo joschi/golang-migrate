@@ -7,7 +7,7 @@ import (
 
 	"log"
 
-	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v5"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -17,10 +17,10 @@ import (
 	"testing"
 	"time"
 
-	dt "github.com/golang-migrate/migrate/v4/database/testing"
-	"github.com/golang-migrate/migrate/v4/dktesting"
+	dt "github.com/golang-migrate/migrate/v5/database/testing"
+	"github.com/golang-migrate/migrate/v5/dktesting"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
 const defaultPort uint16 = 27017

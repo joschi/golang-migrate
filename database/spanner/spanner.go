@@ -15,8 +15,8 @@ import (
 	sdb "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/spansql"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v5"
+	"github.com/golang-migrate/migrate/v5/database"
 
 	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"

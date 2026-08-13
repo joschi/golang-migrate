@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/database/multistmt"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/database/multistmt"
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
 )
 

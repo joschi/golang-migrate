@@ -4,8 +4,8 @@ import (
 	"embed"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	st "github.com/golang-migrate/migrate/v4/source/testing"
+	"github.com/golang-migrate/migrate/v5/source/iofs"
+	st "github.com/golang-migrate/migrate/v5/source/testing"
 )
 
 //go:embed testdata/migrations/*.sql

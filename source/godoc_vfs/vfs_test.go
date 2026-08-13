@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4/source/godoc_vfs"
-	st "github.com/golang-migrate/migrate/v4/source/testing"
+	"github.com/golang-migrate/migrate/v5/source/godoc_vfs"
+	st "github.com/golang-migrate/migrate/v5/source/testing"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 )
 

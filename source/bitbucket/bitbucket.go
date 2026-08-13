@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang-migrate/migrate/v4/source"
+	"github.com/golang-migrate/migrate/v5/source"
 	"github.com/ktrysmt/go-bitbucket"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )

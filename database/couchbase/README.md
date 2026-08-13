@@ -44,9 +44,9 @@ migrate -source file://migrations -database "couchbases://Administrator:password
 import (
     "context"
     "github.com/couchbase/gocb/v2"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/golang-migrate/migrate/v4/database/couchbase"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
+    "github.com/golang-migrate/migrate/v5"
+    "github.com/golang-migrate/migrate/v5/database/couchbase"
+    _ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
 ctx := context.Background()

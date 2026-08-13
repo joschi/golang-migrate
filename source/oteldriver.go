@@ -12,10 +12,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/internal/otelconv"
+	"github.com/golang-migrate/migrate/v5/internal/otelconv"
 )
 
-const tracerName = "github.com/golang-migrate/migrate/v4/source"
+const tracerName = "github.com/golang-migrate/migrate/v5/source"
 
 // OTelDriver wraps a Driver and adds OpenTelemetry INTERNAL spans for ReadUp
 // and ReadDown. Obtain one via NewOTelDriver and pass it to

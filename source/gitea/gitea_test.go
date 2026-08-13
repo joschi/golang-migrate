@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	sdk "gitea.dev/sdk"
-	st "github.com/golang-migrate/migrate/v4/source/testing"
+	st "github.com/golang-migrate/migrate/v5/source/testing"
 )
 
 type testRepo struct {

@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v4/source/bitbucket"
+	_ "github.com/golang-migrate/migrate/v5/source/bitbucket"
 )

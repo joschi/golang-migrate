@@ -14,9 +14,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 
-	"github.com/golang-migrate/migrate/v4/database"
-	dStub "github.com/golang-migrate/migrate/v4/database/stub"
-	sStub "github.com/golang-migrate/migrate/v4/source/stub"
+	"github.com/golang-migrate/migrate/v5/database"
+	dStub "github.com/golang-migrate/migrate/v5/database/stub"
+	sStub "github.com/golang-migrate/migrate/v5/source/stub"
 )
 
 // testLockTimeout only has to be long enough for the deadline to be the reason

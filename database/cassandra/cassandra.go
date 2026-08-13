@@ -12,8 +12,8 @@ import (
 	"time"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/database/multistmt"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/database/multistmt"
 )
 
 func init() {

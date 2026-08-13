@@ -5,17 +5,17 @@ import (
 	"database/sql"
 	sqldriver "database/sql/driver"
 	"fmt"
-	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v5"
 	"log"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	dt "github.com/golang-migrate/migrate/v4/database/testing"
-	"github.com/golang-migrate/migrate/v4/dktesting"
+	dt "github.com/golang-migrate/migrate/v5/database/testing"
+	"github.com/golang-migrate/migrate/v5/dktesting"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
 const defaultPort = 1433

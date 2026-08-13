@@ -14,9 +14,9 @@ import (
 	"sync/atomic"
 
 	"github.com/XSAM/otelsql"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/database/dbotel"
+	"github.com/golang-migrate/migrate/v5"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/database/dbotel"
 	_ "github.com/mutecomm/go-sqlcipher/v4"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )

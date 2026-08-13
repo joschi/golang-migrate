@@ -5,15 +5,15 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/otelconv"
-	"github.com/golang-migrate/migrate/v4/source"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/internal/otelconv"
+	"github.com/golang-migrate/migrate/v5/source"
 )
 
 const (
 	// instrumentationName is the instrumentation scope name used when creating
 	// the tracer and meter.
-	instrumentationName = "github.com/golang-migrate/migrate/v4"
+	instrumentationName = "github.com/golang-migrate/migrate/v5"
 )
 
 // Option configures a Migrate instance.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/golang-migrate/migrate/v4/internal/otelconv"
+	"github.com/golang-migrate/migrate/v5/internal/otelconv"
 )
 
 // Error should be used for errors involving queries ran against the database

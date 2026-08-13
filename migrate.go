@@ -18,10 +18,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/otelconv"
-	iurl "github.com/golang-migrate/migrate/v4/internal/url"
-	"github.com/golang-migrate/migrate/v4/source"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/internal/otelconv"
+	iurl "github.com/golang-migrate/migrate/v5/internal/url"
+	"github.com/golang-migrate/migrate/v5/source"
 )
 
 // DefaultPrefetchMigrations sets the number of migrations to pre-read
