@@ -117,4 +117,19 @@ read -r -p "Create and push these ${#TAGS[@]} tags? [y/N] " reply
 for tag in "${TAGS[@]}"; do
 	git tag "$tag"
 done
-git push origin "${TAGS[@]}"
+
+# GitHub creates no push event when more than three tags arrive in one push, so
+# the root tag -- the one the goreleaser job watches -- goes in a push of its
+# own, last. The prefixed module tags go first; only `v*` matches the tag filter
+# in .github/workflows/ci.yaml, so their push triggers nothing by design.
+# Interrupted between the two, the modules are published but unreleased, which
+# is retriable; the reverse order would build a release before they resolve.
+nested=()
+for tag in "${TAGS[@]}"; do
+	[[ $tag == "v$V" ]] || nested+=("$tag")
+done
+# an empty array under set -u is an unbound variable before bash 4.4
+if [[ ${#nested[@]} -gt 0 ]]; then
+	git push origin "${nested[@]}"
+fi
+git push origin "v$V"

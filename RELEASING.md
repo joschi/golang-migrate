@@ -73,7 +73,11 @@ The practical consequences during development:
    ```
 
    The script lists all tags, asks for confirmation, then creates and pushes
-   them.
+   them — in two pushes. GitHub creates no push event when more than three tags
+   arrive at once, so the module tags go first and the plain `v5.1.0` tag is
+   pushed on its own, last. That last push is the one that starts the release
+   build; sending all ~34 together would publish the modules to the proxy and
+   silently skip it.
 
 3. GoReleaser fires on the plain `v5.1.0` tag and publishes the CLI binaries,
    the deb packages and the Docker images. Nothing else is needed.

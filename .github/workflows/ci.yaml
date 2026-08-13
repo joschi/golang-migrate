@@ -8,6 +8,9 @@ on:
     # from triggering the workflow at all, taking the goreleaser job with it.
     branches-ignore:
       - "release/**"
+    # Only the root tag. The prefixed module tags (database/postgres/v5.1.0 and
+    # friends) do not match, which is what lets scripts/tag-release.sh push them
+    # separately from the release-triggering `v*` tag.
     tags:
       - "v*"
   pull_request:
