@@ -29,9 +29,16 @@ if [[ ! $V =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
 	exit 1
 fi
 
-# every module in the workspace (avoid mapfile: macOS still ships bash 3.2)
+# Every module in the workspace. A process substitution would hide a `go list`
+# failure from set -e, leaving DIRS empty and the run a silent no-op -- which in
+# tag mode means `git push origin` with no refspec, i.e. pushing the branch.
+if ! modules=$(go list -m -f '{{.Dir}}') || [[ -z $modules ]]; then
+	echo "error: cannot list the workspace modules; nothing was changed" >&2
+	exit 1
+fi
+# avoid mapfile: macOS still ships bash 3.2
 DIRS=()
-while IFS= read -r line; do DIRS+=("$line"); done < <(go list -m -f '{{.Dir}}')
+while IFS= read -r line; do [[ -n $line ]] && DIRS+=("$line"); done <<<"$modules"
 ROOT=$PWD
 
 relpath() { echo "${1#"$ROOT"}" | sed 's|^/||'; }
@@ -41,26 +48,44 @@ relpath() { echo "${1#"$ROOT"}" | sed 's|^/||'; }
 ALL_TAGS=$(awk '/^\/\/go:build /{print $2}' cmd/migrate/internal/cli/build_*.go | sort -u | tr '\n' ' ')
 
 if [[ $MODE == "--requires" ]]; then
-	for dir in "${DIRS[@]}"; do
+	# Discover every module's dependencies before editing any go.mod. `go mod
+	# edit` never loads the module graph, but `go list` does -- and the moment
+	# one go.mod requires the not-yet-existing v$V, `go list` fails in every
+	# module, not just that one. Editing as we go would abort the run after the
+	# first module and leave the release half-written.
+	RELS=()
+	DEPS=()
+	for i in "${!DIRS[@]}"; do
+		dir=${DIRS[$i]}
 		rel=$(relpath "$dir")
 		[[ -z $rel ]] && continue # the core module depends on nothing in-repo
 
-		# `go list -m` prints every module in the workspace, not just this one
 		# `go list -m` prints every module in the workspace, not just this one
 		self=$(awk '/^module /{print $2; exit}' "$dir/go.mod")
 		# Ask go which module owns each dependency rather than matching path
 		# prefixes by hand, and drop the module's own packages. The build tags
 		# matter: every driver the CLI imports sits behind one, so without them
-		# cmd/migrate looks like it depends on the core module alone.
-		deps=$( (cd "$dir" && go list -deps -test -tags "$ALL_TAGS" \
-			-f '{{if .Module}}{{.Module.Path}}{{end}}' ./... 2>/dev/null) |
+		# cmd/migrate looks like it depends on the core module alone. Capture
+		# before filtering: piping go list straight into grep would let pipefail
+		# report the grep's success and hide a failed go list.
+		if ! all=$(cd "$dir" && go list -deps -test -tags "$ALL_TAGS" \
+			-f '{{if .Module}}{{.Module.Path}}{{end}}' ./...); then
+			echo "error: go list failed in $rel; no go.mod was modified" >&2
+			exit 1
+		fi
+		RELS[$i]=$rel
+		DEPS[$i]=$(printf '%s\n' "$all" |
 			{ grep '^github.com/golang-migrate/migrate' || true; } |
 			{ grep -vx "$self" || true; } | sort -u)
+	done
 
-		for mod in $deps; do
-			(cd "$dir" && go mod edit -require="$mod@v$V")
-		done
-		echo "-- $rel: ${deps//$'\n'/ }"
+	for i in "${!DEPS[@]}"; do
+		flags=()
+		for mod in ${DEPS[$i]}; do flags+=(-require="$mod@v$V"); done
+		if [[ ${#flags[@]} -gt 0 ]]; then
+			(cd "${DIRS[$i]}" && go mod edit "${flags[@]}")
+		fi
+		echo "-- ${RELS[$i]}: ${DEPS[$i]//$'\n'/ }"
 	done
 	echo
 	echo "Intra-repo requires pinned to v$V."
