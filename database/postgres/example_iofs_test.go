@@ -1,6 +1,4 @@
-//go:build go1.16
-
-package iofs_test
+package postgres_test
 
 import (
 	"context"
@@ -12,12 +10,12 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-//go:embed testdata/migrations/*.sql
+//go:embed examples/migrations/*.sql
 var fs embed.FS
 
-func Example() {
+func Example_iofs() {
 	ctx := context.Background()
-	d, err := iofs.New(fs, "testdata/migrations")
+	d, err := iofs.New(fs, "examples/migrations")
 	if err != nil {
 		log.Fatal(err)
 	}

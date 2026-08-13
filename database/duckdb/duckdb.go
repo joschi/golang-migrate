@@ -16,7 +16,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/dbotel"
+	"github.com/golang-migrate/migrate/v4/database/dbotel"
 
 	_ "github.com/duckdb/duckdb-go/v2"
 )

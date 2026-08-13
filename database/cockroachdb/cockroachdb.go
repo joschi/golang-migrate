@@ -15,7 +15,7 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/dbotel"
+	"github.com/golang-migrate/migrate/v4/database/dbotel"
 	"github.com/lib/pq"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )

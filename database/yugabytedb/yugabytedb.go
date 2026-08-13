@@ -15,7 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v7"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/dbotel"
+	"github.com/golang-migrate/migrate/v4/database/dbotel"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"

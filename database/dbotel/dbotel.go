@@ -1,5 +1,9 @@
 // Package dbotel centralizes the OpenTelemetry configuration shared by the
 // database/sql based database drivers.
+//
+// This package is a helper for driver implementations, not an end-user API.
+// It is exported only because each database driver lives in its own module and
+// therefore cannot import an internal package of the core module.
 package dbotel
 
 import (

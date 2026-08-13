@@ -20,7 +20,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/dbotel"
+	"github.com/golang-migrate/migrate/v4/database/dbotel"
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
