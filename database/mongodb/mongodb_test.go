@@ -1,4 +1,4 @@
-package v2
+package mongodb
 
 import (
 	"bytes"
@@ -121,7 +121,7 @@ func testMigrate(t *testing.T) {
 				t.Error(err)
 			}
 		}()
-		m, err := migrate.NewWithDatabaseInstance(context.Background(), "file://../examples/migrations", "", d)
+		m, err := migrate.NewWithDatabaseInstance(context.Background(), "file://./examples/migrations", "", d)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -24,16 +24,16 @@ Forked from [mattes/migrate](https://github.com/mattes/migrate)
 Database drivers run migrations. [Add a new database?](database/driver.go)
 
 * [PostgreSQL](database/postgres)
-* [PGX v5](database/pgx/v5)
+* [PGX v5](database/pgx5)
 * [Redshift](database/redshift)
 * [Ql](database/ql)
-* [Cassandra / ScyllaDB](database/cassandra/v2)
+* [Cassandra / ScyllaDB](database/cassandra)
 * [SQLite](database/sqlite)
 * [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
 * [SQLCipher](database/sqlcipher)
 * [MySQL / MariaDB](database/mysql)
 * [Neo4j](database/neo4j)
-* [MongoDB](database/mongodb/v2)
+* [MongoDB](database/mongodb)
 * [Google Cloud Spanner](database/spanner)
 * [CockroachDB](database/cockroachdb)
 * [YugabyteDB](database/yugabytedb)
@@ -322,8 +322,8 @@ after which those metrics flow to the global `MeterProvider`.
 ### Not instrumented
 
 These database drivers are covered by the generic `db.*` spans, but their
-clients emit no telemetry of their own: `cassandra/v2`, `couchbase`,
-`mongodb/v2`, `neo4j`. Contributions welcome.
+clients emit no telemetry of their own: `cassandra`, `couchbase`,
+`mongodb`, `neo4j`. Contributions welcome.
 
 ## Tutorials
 

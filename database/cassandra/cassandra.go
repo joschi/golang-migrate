@@ -1,4 +1,4 @@
-package v2
+package cassandra
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 
 func init() {
 	db := new(Cassandra)
-	database.Register("cassandra/v2", db)
+	database.Register("cassandra", db)
 }
 
 var (
