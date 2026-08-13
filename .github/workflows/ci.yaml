@@ -88,8 +88,12 @@ jobs:
   #
   # Intra-repo requires are deliberately absent between releases (see
   # RELEASING.md), so today this only proves out the external dependency set.
-  # Once v5.0.0 is tagged, drop continue-on-error and this becomes the real
-  # guard.
+  # Two things have to happen before this can become the real guard: the v5 tags
+  # must exist, and the go.sum entries for the intra-repo requires must be
+  # written, which can only happen after those tags are public (RELEASING.md
+  # step 4). `go mod edit -require` does not write go.sum, so until that lands
+  # `GOWORK=off go build` fails here on missing go.sum entries. Then drop
+  # continue-on-error.
   tidy-check:
     name: tidy-check (${{ matrix.module }})
     needs: [discover]

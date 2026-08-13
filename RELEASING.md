@@ -97,6 +97,21 @@ The practical consequences during development:
    `Dockerfile`, never the artifacts GoReleaser publishes. `make echo-version`
    prints it.
 
+4. **Write the `go.sum` entries**, once the tags are public:
+
+   ```
+   git switch -c chore/tidy-5.1.0
+   go list -m -f '{{.Dir}}' | while read -r d; do (cd "$d" && GOWORK=off go mod tidy); done
+   ```
+
+   `go mod edit -require` writes `go.mod` and nothing else, so the modules ship
+   requiring each other with no matching `go.sum` entry. That costs consumers
+   nothing — they compute their own — but until it is done `GOWORK=off go build`
+   fails inside each module, which is exactly what the `tidy-check` CI job runs.
+   This is a follow-up commit rather than part of the release commit: the tags
+   have to exist before anything can be hashed. Once it has landed, drop
+   `continue-on-error` from `tidy-check` and the job becomes a real guard.
+
 ## What a breaking change costs
 
 Because the modules share one version, a breaking change anywhere forces a
