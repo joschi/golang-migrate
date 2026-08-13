@@ -59,8 +59,16 @@ jobs:
 workflows:
   lint-and-test:
     jobs:
-      - lint
+      # A release commit pins every intra-repo require to tags that do not exist
+      # until it is merged and tagged, so nothing in the workspace resolves and
+      # both jobs would fail. GitHub Actions skips these branches too; see
+      # RELEASING.md.
+      - lint:
+          filters: &skip-release-branches
+            branches:
+              ignore: /^release\/.*/
       - test:
+          filters: *skip-release-branches
           matrix:
             parameters:
               go-version: ["1.26.4"]

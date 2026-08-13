@@ -7,7 +7,7 @@
 # commit: v5.1.0, database/postgres/v5.1.0, source/github/v5.1.0, ...
 #
 # Usage:
-#   scripts/tag-release.sh 5.1.0 --requires   # step 1, run on a release branch
+#   scripts/tag-release.sh 5.1.0 --requires   # step 1, on a release/… branch
 #   scripts/tag-release.sh 5.1.0              # step 2, after that lands
 #
 # Step 1 writes the intra-repo requires into every go.mod. They are absent
@@ -91,8 +91,9 @@ if [[ $MODE == "--requires" ]]; then
 	echo "Intra-repo requires pinned to v$V."
 	echo
 	echo "NOTE: the workspace will not build until those tags exist, because go"
-	echo "reads the go.mod of every required version. That is expected. Review"
-	echo "the diff, commit and merge it, then tag the merge commit:"
+	echo "reads the go.mod of every required version. That is expected. Commit"
+	echo "this on a release/… branch -- CI skips those, and a PR from any other"
+	echo "branch cannot go green. Once it has merged, tag the merge commit:"
 	echo "  $0 $V"
 	echo "To get back to a working tree without releasing: git checkout -- '**/go.mod'"
 	exit 0

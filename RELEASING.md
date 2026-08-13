@@ -43,17 +43,25 @@ The practical consequences during development:
 - `go mod tidy` cannot run in a module that has intra-repo dependencies. Use
   `make tidy` (`go work sync`) instead.
 - The `tidy-check` CI job is informational until the first v5 tag exists.
+- CI does not run on `release/…` branches. A release commit pins requires to
+  tags that do not exist yet, so every job would fail on it; the code it carries
+  was already tested on the commits that went into it, and the whole workspace
+  is exercised again once the tags exist.
 
 ## Cutting a release
 
-1. **Write the requires** on a release branch:
+1. **Write the requires** on a branch named `release/…`:
 
    ```
+   git switch -c release/5.1.0
    ./scripts/tag-release.sh 5.1.0 --requires
    ```
 
    This pins every intra-repo require to `v5.1.0`. The workspace will not build
    until the tags exist — that is expected. Review the diff and open a PR.
+
+   The branch name matters: CI skips `release/…` branches, so a release branch
+   named anything else lands a PR that cannot go green and cannot be merged.
 
    To abandon the release and get a working tree back:
    `git checkout -- '**/go.mod'`

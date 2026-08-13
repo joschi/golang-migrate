@@ -2,13 +2,33 @@ name: CI
 
 on:
   push:
+    # Nothing resolves on a release commit until its tags exist, so CI skips
+    # release branches -- see RELEASING.md. `tags` has to be listed alongside
+    # `branches-ignore`: a push filter naming only branches stops tag pushes
+    # from triggering the workflow at all, taking the goreleaser job with it.
+    branches-ignore:
+      - "release/**"
+    tags:
+      - "v*"
   pull_request:
 
+# Every job below must keep `needs: [discover]`. That dependency is what carries
+# the release-branch skip on `discover` to the rest of the workflow; a job
+# without it runs on release commits, where the workspace cannot resolve.
 jobs:
   # The repository is a Go workspace of one module per driver. The jobs below
   # fan out over the modules discovered here; `go list ./...` does not span
   # nested workspace modules, so discovery has to go through `go list -m`.
+  #
+  # This job only runs when
+  # 1. The push did not go to a release branch (handled by the filter above), or
+  #    the pull request head is not a release branch -- a pull_request filter can
+  #    only match the base branch, so the head is checked here
+  # 2. The head branch belongs to this repository, so a fork cannot skip CI by
+  #    naming its branch release/… -- GitHub counts a skipped job as passing for
+  #    branch protection
   discover:
+    if: ${{ !(startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     outputs:
       modules: ${{ steps.list.outputs.modules }}
