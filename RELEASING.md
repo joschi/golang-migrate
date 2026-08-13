@@ -79,6 +79,14 @@ The practical consequences during development:
    build; sending all ~34 together would publish the modules to the proxy and
    silently skip it.
 
+   **If it fails part way, run it again.** The module tags are pushed
+   atomically, so a failure there publishes nothing. If they land but the
+   `v5.1.0` push does not, they stay — no release build has started yet, and
+   re-running picks up where it stopped: tags already pointing at the release
+   commit are left alone, and re-pushing an unchanged ref does nothing. The
+   script only refuses when `v5.1.0` already names a *different* commit, which
+   means someone else's release is wearing this version number.
+
 3. GoReleaser fires on the plain `v5.1.0` tag and publishes the CLI binaries,
    the deb packages and the Docker images. Nothing else is needed.
 

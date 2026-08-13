@@ -114,8 +114,60 @@ printf '  %s\n' "${TAGS[@]}"
 read -r -p "Create and push these ${#TAGS[@]} tags? [y/N] " reply
 [[ $reply == [yY] ]] || { echo "aborted"; exit 1; }
 
+# A run that got part way leaves tags behind, so re-running has to be possible:
+# a tag that already points at the commit being released is what this run would
+# have created anyway, and is left alone. Only a tag pointing somewhere else is
+# a real conflict -- that is a different release wearing this version's name.
+# Everything is checked before anything is created, so a refusal changes nothing.
+target=$(git rev-parse HEAD)
+mine=$(git tag -l "${TAGS[@]}")           # of our tags, the ones that exist here
+at_target=$(git tag --points-at HEAD)     # tags already on the release commit
+if ! remote=$(git ls-remote --tags origin |
+	sed 's|\trefs/tags/| |' |
+	awk '{ sub(/\^\{\}$/, "", $2); m[$2] = $1 } END { for (t in m) print m[t], t }'); then
+	echo "error: cannot reach origin; nothing was created" >&2
+	exit 1
+fi
+remote_names=$(printf '%s\n' "$remote" | cut -d' ' -f2)
+
+contains() { [[ $'\n'$1$'\n' == *$'\n'$2$'\n'* ]]; }
+
+conflicts=()
+create=()
 for tag in "${TAGS[@]}"; do
-	git tag "$tag"
+	if ! contains "$mine" "$tag"; then
+		create+=("$tag")
+	elif ! contains "$at_target" "$tag"; then
+		conflicts+=("$tag (local, on another commit)")
+	fi
+	if contains "$remote_names" "$tag" && ! contains "$remote" "$target $tag"; then
+		conflicts+=("$tag (origin, on another commit)")
+	fi
+done
+if [[ ${#conflicts[@]} -gt 0 ]]; then
+	echo "error: v$V already names a different commit:" >&2
+	printf '  %s\n' "${conflicts[@]}" >&2
+	echo "Delete those tags (git tag -d <tag>, git push origin :refs/tags/<tag>)" >&2
+	echo "or release a different version. Nothing was created." >&2
+	exit 1
+fi
+
+# Undo the local tags if this run cannot get them published, so the next attempt
+# starts from a clean tree instead of failing on its own leftovers.
+created=()
+rollback() {
+	[[ ${#created[@]} -gt 0 ]] || return 0
+	git tag -d "${created[@]}" >/dev/null
+	echo "removed the ${#created[@]} local tags this run created" >&2
+}
+
+for tag in "${create[@]:-}"; do
+	[[ -n $tag ]] || continue # `create` is empty when re-running a partial release
+	if ! git tag "$tag"; then
+		rollback
+		exit 1
+	fi
+	created+=("$tag")
 done
 
 # GitHub creates no push event when more than three tags arrive in one push, so
@@ -128,8 +180,25 @@ nested=()
 for tag in "${TAGS[@]}"; do
 	[[ $tag == "v$V" ]] || nested+=("$tag")
 done
+# --atomic so a rejected ref takes the whole push with it. Without it git applies
+# the refs it can, publishing a partial release that cannot be unpublished once
+# anyone has fetched it.
 # an empty array under set -u is an unbound variable before bash 4.4
 if [[ ${#nested[@]} -gt 0 ]]; then
-	git push origin "${nested[@]}"
+	if ! git push --atomic origin "${nested[@]}"; then
+		rollback
+		echo "error: pushing the module tags failed; nothing was published." >&2
+		echo "Fix the cause and re-run: $0 $V" >&2
+		exit 1
+	fi
 fi
-git push origin "v$V"
+
+# Past this point the module tags are public, so rolling back the local tags
+# would only desynchronise the two. Until the root tag lands no release build
+# has started, and re-running is safe: the preflight leaves tags that already
+# point here alone, and re-pushing an unchanged ref is a no-op.
+if ! git push origin "v$V"; then
+	echo "error: the module tags are published but v$V is not, so no release" >&2
+	echo "build has started. Re-run once the cause is fixed: $0 $V" >&2
+	exit 1
+fi
