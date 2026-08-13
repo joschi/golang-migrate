@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/database/pgx5"
+	_ "github.com/golang-migrate/migrate/database/pgx5/v5"
 )

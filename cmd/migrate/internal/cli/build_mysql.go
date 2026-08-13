@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/database/mysql"
+	_ "github.com/golang-migrate/migrate/database/mysql/v5"
 )

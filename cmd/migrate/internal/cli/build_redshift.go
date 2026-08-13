@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/database/redshift"
+	_ "github.com/golang-migrate/migrate/database/redshift/v5"
 )

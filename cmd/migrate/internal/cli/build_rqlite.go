@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/database/rqlite"
+	_ "github.com/golang-migrate/migrate/database/rqlite/v5"
 )

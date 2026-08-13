@@ -11,7 +11,7 @@ import (
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/golang-migrate/migrate/v5"
-	"github.com/golang-migrate/migrate/v5/database/clickhouse"
+	"github.com/golang-migrate/migrate/database/clickhouse/v5"
 	dt "github.com/golang-migrate/migrate/v5/database/testing"
 	"github.com/golang-migrate/migrate/dktesting/v5"
 	_ "github.com/golang-migrate/migrate/v5/source/file"

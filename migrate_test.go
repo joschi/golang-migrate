@@ -133,7 +133,7 @@ func ExampleNewWithDatabaseInstance() {
 
 	// Create driver instance from db.
 	// Check each driver if it supports the WithInstance function.
-	// `import "github.com/golang-migrate/migrate/v5/database/postgres"`
+	// `import "github.com/golang-migrate/migrate/database/postgres/v5"`
 	instance, err := dStub.WithInstance(ctx, db, &dStub.Config{})
 	if err != nil {
 		log.Fatal(err)

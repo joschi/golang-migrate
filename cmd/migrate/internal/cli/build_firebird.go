@@ -3,5 +3,5 @@
 package cli
 
 import (
-	_ "github.com/golang-migrate/migrate/v5/database/firebird"
+	_ "github.com/golang-migrate/migrate/database/firebird/v5"
 )
