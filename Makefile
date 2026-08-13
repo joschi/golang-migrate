@@ -10,6 +10,10 @@ VERSION ?= $(shell git describe --tags --match 'v[0-9]*' 2>/dev/null | sed 's/^v
 TEST_FLAGS ?=
 REPO_OWNER ?= $(shell cd .. && basename "$$(pwd)")
 COVERAGE_DIR ?= .coverage
+# Modules are tested from their own directory, so the profile path has to be
+# absolute. abspath anchors a relative COVERAGE_DIR at the repository root and
+# leaves an absolute one (Dockerfile.circleci sets /tmp/coverage) alone.
+COVERAGE_ABS := $(abspath $(COVERAGE_DIR))
 
 build:
 	CGO_ENABLED=0 go build -ldflags='-X main.Version=$(VERSION)' -tags '$(DATABASE) $(SOURCE)' ./cmd/migrate
@@ -39,12 +43,13 @@ test-short:
 
 
 # Each module writes its own coverage profile: they are separate builds, so a
-# single shared profile would just be overwritten module by module.
+# single shared profile would just be overwritten module by module. $$rel comes
+# from foreach_module; flatten its slashes for a filename.
 test:
-	@-rm -r $(COVERAGE_DIR)
-	@mkdir -p $(COVERAGE_DIR)
+	@-rm -r $(COVERAGE_ABS)
+	@mkdir -p $(COVERAGE_ABS)
 	$(call foreach_module, go test -v -race -covermode atomic \
-		-coverprofile "$(CURDIR)/$(COVERAGE_DIR)/$$(echo "$${dir##$(CURDIR)/}" | tr / -).txt" \
+		-coverprofile "$(COVERAGE_ABS)/$$(echo $$rel | tr / -).txt" \
 		-bench=. -benchmem -timeout 20m ./...)
 
 
@@ -59,8 +64,20 @@ kill-orphaned-docker-containers:
 	docker rm -f $(shell docker ps -aq --filter label=org.testcontainers=true)
 
 
-html-coverage:
-	go tool cover -html=$(COVERAGE_DIR)/combined.txt
+# One profile per module, so viewing them as a whole means concatenating first:
+# keep the first `mode:` header and drop the rest. combined.txt is excluded
+# explicitly rather than relying on the redirect having truncated it first.
+merge-coverage:
+	@profiles=$$(ls $(COVERAGE_ABS)/*.txt 2>/dev/null | grep -v '/combined\.txt$$' || true); \
+	if [ -z "$$profiles" ]; then \
+		echo "no coverage profiles in $(COVERAGE_ABS) -- run 'make test' first" >&2; \
+		exit 1; \
+	fi; \
+	awk 'FNR == 1 && seen++ { next } 1' $$profiles >$(COVERAGE_ABS)/combined.txt
+	@echo "$(COVERAGE_ABS)/combined.txt"
+
+html-coverage: merge-coverage
+	go tool cover -html=$(COVERAGE_ABS)/combined.txt
 
 
 list-external-deps:
@@ -127,7 +144,8 @@ echo-version:
 # nested modules.
 define foreach_module
 	@go list -m -f '{{.Dir}}' | while read -r dir; do \
-		echo "-- $${dir##$(CURDIR)/}"; \
+		rel=$${dir#$(CURDIR)}; rel=$${rel#/}; rel=$${rel:-core}; \
+		echo "-- $$rel"; \
 		( cd "$$dir" && $(1) ) || exit 1; \
 	done
 
@@ -135,6 +153,7 @@ endef
 
 
 .PHONY: build build-docker build-cli clean test-short test test-with-flags html-coverage \
+        merge-coverage \
         restore-import-paths rewrite-import-paths list-external-deps release lint tidy \
 		docs kill-docs open-docs kill-orphaned-docker-containers echo-source echo-database \
 		echo-version
