@@ -99,6 +99,54 @@ if [[ $MODE == "--requires" ]]; then
 	exit 0
 fi
 
+# These tags are immutable the moment the module proxy or anyone else fetches
+# them, so check the commit is actually releasable before naming it. All three
+# checks run before the tag list is even built: none of this creates anything.
+target=$(git rev-parse HEAD)
+
+if ! git diff-index --quiet HEAD --; then
+	echo "error: the working tree has uncommitted changes. Tags would name a" >&2
+	echo "commit that does not match what you are looking at." >&2
+	exit 1
+fi
+
+if ! upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null); then
+	echo "error: this branch has no upstream, so there is nothing to check the" >&2
+	echo "release commit against. Track one first: git branch -u origin/main" >&2
+	exit 1
+fi
+if [[ $target != $(git rev-parse "$upstream") ]]; then
+	echo "error: HEAD does not match $upstream. Release the commit that" >&2
+	echo "landed, not one that is only local -- pull or push first." >&2
+	exit 1
+fi
+
+# Step 1 (--requires) writes the intra-repo requires; without them the released
+# modules do not resolve for anyone outside this workspace. Read the go.mod
+# files rather than asking go: `go list -deps`, which is what would recompute
+# the expected set, is exactly what these not-yet-tagged pins stop from
+# resolving. So this catches a stale version or a step that never ran -- not a
+# single module whose require went missing while the others kept theirs.
+# grep exits 1 when nothing matches, which under pipefail would end the run here
+# with no message -- "no requires at all" is a case to report, not to die on.
+pins=()
+while IFS= read -r line; do
+	[[ -n $line ]] && pins+=("$line")
+done <<<"$({ grep -rhoE 'github\.com/golang-migrate/migrate[^[:space:]]* v[0-9][^[:space:]]*' \
+	--include=go.mod . || true; } | awk '{print $2}' | sort -u)"
+
+if [[ ${#pins[@]} -eq 0 ]]; then
+	echo "error: no go.mod requires a sibling module, so step 1 has not run on" >&2
+	echo "this commit. Released modules would not resolve. See RELEASING.md." >&2
+	exit 1
+fi
+if [[ ${#pins[@]} -ne 1 || ${pins[0]} != "v$V" ]]; then
+	echo "error: intra-repo requires are pinned to a different version:" >&2
+	printf '  %s\n' "${pins[@]}" >&2
+	echo "Re-run step 1 for v$V: $0 $V --requires" >&2
+	exit 1
+fi
+
 echo "Tagging every module at v$V:"
 TAGS=()
 for dir in "${DIRS[@]}"; do
