@@ -2,52 +2,120 @@ name: CI
 
 on:
   push:
+    # Nothing resolves on a release commit until its tags exist, so CI skips
+    # release branches -- see RELEASING.md. `tags` has to be listed alongside
+    # `branches-ignore`: a push filter naming only branches stops tag pushes
+    # from triggering the workflow at all, taking the goreleaser job with it.
+    branches-ignore:
+      - "release/**"
+    # Only the root tag. The prefixed module tags (database/postgres/v5.1.0 and
+    # friends) do not match, which is what lets scripts/tag-release.sh push them
+    # separately from the release-triggering `v*` tag.
+    tags:
+      - "v*"
   pull_request:
 
+# Every job below must keep `needs: [discover]`. That dependency is what carries
+# the release-branch skip on `discover` to the rest of the workflow; a job
+# without it runs on release commits, where the workspace cannot resolve.
 jobs:
-  lint:
-    name: lint
+  # The repository is a Go workspace of one module per driver. The jobs below
+  # fan out over the modules discovered here; `go list ./...` does not span
+  # nested workspace modules, so discovery has to go through `go list -m`.
+  #
+  # This job only runs when
+  # 1. The push did not go to a release branch (handled by the filter above), or
+  #    the pull request head is not a release branch -- a pull_request filter can
+  #    only match the base branch, so the head is checked here
+  # 2. The head branch belongs to this repository, so a fork cannot skip CI by
+  #    naming its branch release/… -- GitHub counts a skipped job as passing for
+  #    branch protection
+  discover:
+    if: ${{ !(startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
+      - id: list
+        run: |
+          echo "modules=$(go list -m -f '{{.Dir}}' | sed "s|^$PWD/||;s|^$PWD$|.|" | jq -Rsc 'split("\n") | map(select(length > 0))')" >> "$GITHUB_OUTPUT"
+
+  lint:
+    name: lint (${{ matrix.module }})
+    needs: [discover]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      # The workspace stays active: it is what resolves the intra-repo
+      # dependencies while the v5 tags do not exist yet.
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
+          working-directory: ${{ matrix.module }}
 
   test:
+    name: test (${{ matrix.module }})
+    needs: [discover]
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        go: ["1.26.x"]
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.go }}
-
+          go-version: "1.26.x"
       - name: Run test
-        run: make test COVERAGE_DIR=/tmp/coverage
+        working-directory: ${{ matrix.module }}
+        run: go test -race -count=1 -timeout 20m ./...
 
-#      - name: Send goveralls coverage
-#        uses: shogo82148/actions-goveralls@v1
-#        with:
-#          path-to-profile: /tmp/coverage/combined.txt
-#          flag-name: Go-${{ matrix.go }}
-#          parallel: true
-
-#  check-coverage:
-#    name: Check coverage
-#    needs: [test]
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: shogo82148/actions-goveralls@v1
-#        with:
-#          parallel-finished: true
+  # Guards the failure mode of a Go workspace: go.work satisfies an import even
+  # when the module's own go.mod is missing the require, so a module can look
+  # fine in CI and be unbuildable for anyone who depends on it alone.
+  #
+  # Intra-repo requires are deliberately absent between releases (see
+  # RELEASING.md), so today this only proves out the external dependency set.
+  # Two things have to happen before this can become the real guard: the v5 tags
+  # must exist, and the go.sum entries for the intra-repo requires must be
+  # written, which can only happen after those tags are public (RELEASING.md
+  # step 4). `go mod edit -require` does not write go.sum, so until that lands
+  # `GOWORK=off go build` fails here on missing go.sum entries. Then drop
+  # continue-on-error.
+  tidy-check:
+    name: tidy-check (${{ matrix.module }})
+    needs: [discover]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+      - name: go mod tidy -diff
+        working-directory: ${{ matrix.module }}
+        run: go mod tidy -diff
+      - name: build without the workspace
+        working-directory: ${{ matrix.module }}
+        run: go build ./...
 
   goreleaser:
     name: Release a new version
@@ -86,6 +154,12 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 33 directory-prefixed module tags sit on this same commit, and
+          # `git describe --tags --abbrev=0` returns one of those, not the root
+          # tag. Name the tag that triggered this run instead of letting the
+          # version be discovered -- it decides the Docker tags, the release
+          # name and the version compiled into the binaries.
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
 
       - run: gem install package_cloud
       - run: package_cloud push golang-migrate/migrate/ubuntu/bionic dist/migrate.linux-amd64.deb

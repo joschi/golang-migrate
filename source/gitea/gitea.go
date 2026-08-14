@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	sdk "gitea.dev/sdk"
-	"github.com/golang-migrate/migrate/v4/source"
+	"github.com/golang-migrate/migrate/v5/source"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

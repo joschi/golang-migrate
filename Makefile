@@ -1,10 +1,19 @@
 SOURCE ?= file go_bindata github github_ee bitbucket aws_s3 google_cloud_storage godoc_vfs gitlab gitea
-DATABASE ?= postgres mysql redshift cassandra_v2 spanner cockroachdb yugabytedb clickhouse mongodb_v2 sqlserver firebird neo4j pgx5 rqlite couchbase
+DATABASE ?= postgres mysql redshift cassandra spanner cockroachdb yugabytedb clickhouse mongodb sqlserver firebird neo4j pgx5 rqlite couchbase
 DATABASE_TEST ?= $(DATABASE) sqlite sqlite3 sqlcipher duckdb
-VERSION ?= $(shell git describe --tags 2>/dev/null | cut -c 2-)
+# A release puts 33 directory-prefixed tags on the same commit as the root one,
+# and `git describe` picked those first -- `cut -c 2-` then served
+# "md/migrate/v5.1.0" as the version. --match narrows it to the root tag, and
+# sed strips only a real leading v. Affects `make build*` only: GoReleaser
+# derives its own version (see RELEASING.md).
+VERSION ?= $(shell git describe --tags --match 'v[0-9]*' 2>/dev/null | sed 's/^v//')
 TEST_FLAGS ?=
 REPO_OWNER ?= $(shell cd .. && basename "$$(pwd)")
 COVERAGE_DIR ?= .coverage
+# Modules are tested from their own directory, so the profile path has to be
+# absolute. abspath anchors a relative COVERAGE_DIR at the repository root and
+# leaves an absolute one (Dockerfile.circleci sets /tmp/coverage) alone.
+COVERAGE_ABS := $(abspath $(COVERAGE_DIR))
 
 build:
 	CGO_ENABLED=0 go build -ldflags='-X main.Version=$(VERSION)' -tags '$(DATABASE) $(SOURCE)' ./cmd/migrate
@@ -13,58 +22,76 @@ build-docker:
 	CGO_ENABLED=0 go build -a -o build/migrate.linux-386 -ldflags="-s -w -X main.Version=${VERSION}" -tags "$(DATABASE) $(SOURCE)" ./cmd/migrate
 
 build-cli: clean
-	-mkdir ./cli/build
-	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o ../../cli/build/migrate.linux-amd64 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
-	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -a -o ../../cli/build/migrate.linux-armv7 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
-	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o ../../cli/build/migrate.linux-arm64 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
-	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -a -o ../../cli/build/migrate.darwin-amd64 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
-	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -a -o ../../cli/build/migrate.windows-386.exe -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
-	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -a -o ../../cli/build/migrate.windows-amd64.exe -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
-	cd ./cli/build && find . -name 'migrate*' | xargs -I{} tar czf {}.tar.gz {}
-	cd ./cli/build && shasum -a 256 * > sha256sum.txt
-	cat ./cli/build/sha256sum.txt
+	-mkdir ./build
+	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o ../../build/migrate.linux-amd64 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
+	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -a -o ../../build/migrate.linux-armv7 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
+	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o ../../build/migrate.linux-arm64 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
+	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -a -o ../../build/migrate.darwin-amd64 -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
+	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -a -o ../../build/migrate.windows-386.exe -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
+	cd ./cmd/migrate && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -a -o ../../build/migrate.windows-amd64.exe -ldflags='-X main.Version=$(VERSION) -extldflags "-static"' -tags '$(DATABASE) $(SOURCE)' .
+	cd ./build && find . -name 'migrate*' | xargs -I{} tar czf {}.tar.gz {}
+	cd ./build && shasum -a 256 * > sha256sum.txt
+	cat ./build/sha256sum.txt
 
 
 clean:
-	-rm -r ./cli/build
+	-rm -r ./build
 
 
 test-short:
 	make test-with-flags --ignore-errors TEST_FLAGS='-short'
 
 
+# Each module writes its own coverage profile: they are separate builds, so a
+# single shared profile would just be overwritten module by module. $$rel comes
+# from foreach_module; flatten its slashes for a filename.
 test:
-	@-rm -r $(COVERAGE_DIR)
-	@mkdir $(COVERAGE_DIR)
-	make test-with-flags TEST_FLAGS='-v -race -covermode atomic -coverprofile $$(COVERAGE_DIR)/combined.txt -bench=. -benchmem -timeout 20m'
+	@-rm -r $(COVERAGE_ABS)
+	@mkdir -p $(COVERAGE_ABS)
+	$(call foreach_module, go test -v -race -covermode atomic \
+		-coverprofile "$(COVERAGE_ABS)/$$(echo $$rel | tr / -).txt" \
+		-bench=. -benchmem -timeout 20m ./...)
 
 
 test-with-flags:
 	@echo SOURCE: $(SOURCE)
 	@echo DATABASE_TEST: $(DATABASE_TEST)
 
-	@go test $(TEST_FLAGS) ./...
+	$(call foreach_module, go test $(TEST_FLAGS) ./...)
 
 
 kill-orphaned-docker-containers:
 	docker rm -f $(shell docker ps -aq --filter label=org.testcontainers=true)
 
 
-html-coverage:
-	go tool cover -html=$(COVERAGE_DIR)/combined.txt
+# One profile per module, so viewing them as a whole means concatenating first:
+# keep the first `mode:` header and drop the rest. combined.txt is excluded
+# explicitly rather than relying on the redirect having truncated it first.
+merge-coverage:
+	@profiles=$$(ls $(COVERAGE_ABS)/*.txt 2>/dev/null | grep -v '/combined\.txt$$' || true); \
+	if [ -z "$$profiles" ]; then \
+		echo "no coverage profiles in $(COVERAGE_ABS) -- run 'make test' first" >&2; \
+		exit 1; \
+	fi; \
+	awk 'FNR == 1 && seen++ { next } 1' $$profiles >$(COVERAGE_ABS)/combined.txt
+	@echo "$(COVERAGE_ABS)/combined.txt"
+
+html-coverage: merge-coverage
+	go tool cover -html=$(COVERAGE_ABS)/combined.txt
 
 
 list-external-deps:
-	$(call external_deps,'.')
-	$(call external_deps,'./cli/...')
+	$(call foreach_module, go list -f '{{join .Deps "\n"}}' ./... | grep -v github.com/$(REPO_OWNER)/migrate | sort -u | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}')
 
-	$(foreach v, $(SOURCE), $(call external_deps,'./source/$(v)/...'))
-	$(call external_deps,'./source/testing/...')
-	$(call external_deps,'./source/stub/...')
 
-	$(foreach v, $(DATABASE), $(call external_deps,'./database/$(v)/...'))
-	$(call external_deps,'./database/testing/...')
-	$(call external_deps,'./database/stub/...')
+lint:
+	$(call foreach_module, golangci-lint run)
+
+
+# go mod tidy cannot run per module while the intra-repo requires are absent;
+# see RELEASING.md. Syncing the workspace is the equivalent for day-to-day use.
+tidy:
+	go work sync
 
 
 restore-import-paths:
@@ -92,10 +119,13 @@ open-docs:
 	open http://localhost:6064/pkg/github.com/$(REPO_OWNER)/migrate
 
 
-# example: make release V=0.0.0
+# Every module is released together at one version, and Go resolves nested
+# modules only through prefixed tags, so a release is ~34 tags on one commit.
+# See RELEASING.md.
+#
+# example: make release V=5.0.0
 release:
-	git tag v$(V)
-	@read -p "Press enter to confirm and push to origin ..." && git push origin v$(V)
+	./scripts/tag-release.sh $(V)
 
 echo-source:
 	@echo "$(SOURCE)"
@@ -103,16 +133,30 @@ echo-source:
 echo-database:
 	@echo "$(DATABASE)"
 
+# The version baked into `make build*` binaries. Worth being able to read back:
+# a bad derivation is otherwise invisible until a binary ships carrying it.
+echo-version:
+	@echo "$(VERSION)"
 
-define external_deps
-	@echo '-- $(1)';  go list -f '{{join .Deps "\n"}}' $(1) | grep -v github.com/$(REPO_OWNER)/migrate | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}'
+
+# The repository is a Go workspace with one module per driver. Most targets
+# have to run once per module rather than once over ./..., which does not span
+# nested modules.
+define foreach_module
+	@go list -m -f '{{.Dir}}' | while read -r dir; do \
+		rel=$${dir#$(CURDIR)}; rel=$${rel#/}; rel=$${rel:-core}; \
+		echo "-- $$rel"; \
+		( cd "$$dir" && $(1) ) || exit 1; \
+	done
 
 endef
 
 
 .PHONY: build build-docker build-cli clean test-short test test-with-flags html-coverage \
-        restore-import-paths rewrite-import-paths list-external-deps release \
-		docs kill-docs open-docs kill-orphaned-docker-containers echo-source echo-database
+        merge-coverage \
+        restore-import-paths rewrite-import-paths list-external-deps release lint tidy \
+		docs kill-docs open-docs kill-orphaned-docker-containers echo-source echo-database \
+		echo-version
 
 SHELL = /bin/sh
 RAND = $(shell echo $$RANDOM)

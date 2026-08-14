@@ -2,5 +2,22 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "The repository has one module per driver, so a single dependency can appear in dozens of go.mod files. Group each dependency into one PR instead of one PR per module.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "groupName": "{{depName}}",
+      "groupSlug": "gomod-{{depNameSanitized}}"
+    },
+    {
+      "description": "Intra-repo requires are written by scripts/tag-release.sh at release time and are deliberately absent in between; Renovate must not touch them. See RELEASING.md.",
+      "matchPackageNames": [
+        "github.com/golang-migrate/migrate{/,}**"
+      ],
+      "enabled": false
+    }
   ]
 }

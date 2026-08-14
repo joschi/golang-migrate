@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	_ "github.com/duckdb/duckdb-go/v2"
-	"github.com/golang-migrate/migrate/v4"
-	dt "github.com/golang-migrate/migrate/v4/database/testing"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v5"
+	dt "github.com/golang-migrate/migrate/v5/database/testing"
+	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
 func Test(t *testing.T) {

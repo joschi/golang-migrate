@@ -13,8 +13,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/database"
-	dStub "github.com/golang-migrate/migrate/v4/database/stub"
+	"github.com/golang-migrate/migrate/v5/database"
+	dStub "github.com/golang-migrate/migrate/v5/database/stub"
 )
 
 // setGlobalTP sets tp as the global TracerProvider for the duration of the

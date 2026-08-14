@@ -1,9 +1,12 @@
 project_name: migrate
 before:
   hooks:
-    - go mod tidy
+    # the repository is a Go workspace of one module per driver; syncing it is
+    # the multi-module equivalent of the old `go mod tidy` hook
+    - go work sync
 builds:
-  - env:
+  - dir: cmd/migrate
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -16,7 +19,7 @@ builds:
       - 386
     goarm:
       - 7
-    main: ./cmd/migrate
+    main: .
     ldflags:
       - '-w -s -X main.Version={{ .Version }} -extldflags "static"'
     flags:

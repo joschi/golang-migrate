@@ -13,9 +13,9 @@ import (
 
 	"github.com/XSAM/otelsql"
 	"github.com/cenkalti/backoff/v7"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/dbotel"
+	"github.com/golang-migrate/migrate/v5"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/database/dbotel"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/golang-migrate/migrate/v4/database"
+	"github.com/golang-migrate/migrate/v5/database"
 )
 
 func init() {

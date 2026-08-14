@@ -20,7 +20,7 @@ const SchemaURL = semconv.SchemaURL
 
 // modulePath is the module whose version is reported as the instrumentation
 // scope version.
-const modulePath = "github.com/golang-migrate/migrate/v4"
+const modulePath = "github.com/golang-migrate/migrate/v5"
 
 var version = sync.OnceValue(func() string {
 	info, ok := debug.ReadBuildInfo()
@@ -100,30 +100,30 @@ const dbSystemNameYugabyteDB = "yugabytedb"
 // Schemes with no registry entry are normalized to a single spelling but
 // otherwise passed through, as the conventions permit for unlisted systems.
 var dbSystemNames = map[string]string{
-	"cassandra/v2":   semconv.DBSystemNameCassandra.Value.AsString(),
-	"clickhouse":     semconv.DBSystemNameClickHouse.Value.AsString(),
-	"cockroach":      semconv.DBSystemNameCockroachDB.Value.AsString(),
-	"cockroachdb":    semconv.DBSystemNameCockroachDB.Value.AsString(),
-	"couchbase":      semconv.DBSystemNameCouchbase.Value.AsString(),
-	"couchbases":     semconv.DBSystemNameCouchbase.Value.AsString(),
-	"crdb-postgres":  semconv.DBSystemNameCockroachDB.Value.AsString(),
-	"firebird":       semconv.DBSystemNameFirebirdSQL.Value.AsString(),
-	"firebirdsql":    semconv.DBSystemNameFirebirdSQL.Value.AsString(),
-	"mongodb/v2":     semconv.DBSystemNameMongoDB.Value.AsString(),
-	"mongodb/v2+srv": semconv.DBSystemNameMongoDB.Value.AsString(),
-	"mysql":          semconv.DBSystemNameMySQL.Value.AsString(),
-	"pgx5":           semconv.DBSystemNamePostgreSQL.Value.AsString(),
-	"postgres":       semconv.DBSystemNamePostgreSQL.Value.AsString(),
-	"postgresql":     semconv.DBSystemNamePostgreSQL.Value.AsString(),
-	"redshift":       semconv.DBSystemNameAWSRedshift.Value.AsString(),
-	"spanner":        semconv.DBSystemNameGCPSpanner.Value.AsString(),
-	"sqlcipher":      semconv.DBSystemNameSQLite.Value.AsString(),
-	"sqlite":         semconv.DBSystemNameSQLite.Value.AsString(),
-	"sqlite3":        semconv.DBSystemNameSQLite.Value.AsString(),
-	"sqlserver":      semconv.DBSystemNameMicrosoftSQLServer.Value.AsString(),
-	"ysql":           dbSystemNameYugabyteDB,
-	"yugabyte":       dbSystemNameYugabyteDB,
-	"yugabytedb":     dbSystemNameYugabyteDB,
+	"cassandra":     semconv.DBSystemNameCassandra.Value.AsString(),
+	"clickhouse":    semconv.DBSystemNameClickHouse.Value.AsString(),
+	"cockroach":     semconv.DBSystemNameCockroachDB.Value.AsString(),
+	"cockroachdb":   semconv.DBSystemNameCockroachDB.Value.AsString(),
+	"couchbase":     semconv.DBSystemNameCouchbase.Value.AsString(),
+	"couchbases":    semconv.DBSystemNameCouchbase.Value.AsString(),
+	"crdb-postgres": semconv.DBSystemNameCockroachDB.Value.AsString(),
+	"firebird":      semconv.DBSystemNameFirebirdSQL.Value.AsString(),
+	"firebirdsql":   semconv.DBSystemNameFirebirdSQL.Value.AsString(),
+	"mongodb":       semconv.DBSystemNameMongoDB.Value.AsString(),
+	"mongodb+srv":   semconv.DBSystemNameMongoDB.Value.AsString(),
+	"mysql":         semconv.DBSystemNameMySQL.Value.AsString(),
+	"pgx5":          semconv.DBSystemNamePostgreSQL.Value.AsString(),
+	"postgres":      semconv.DBSystemNamePostgreSQL.Value.AsString(),
+	"postgresql":    semconv.DBSystemNamePostgreSQL.Value.AsString(),
+	"redshift":      semconv.DBSystemNameAWSRedshift.Value.AsString(),
+	"spanner":       semconv.DBSystemNameGCPSpanner.Value.AsString(),
+	"sqlcipher":     semconv.DBSystemNameSQLite.Value.AsString(),
+	"sqlite":        semconv.DBSystemNameSQLite.Value.AsString(),
+	"sqlite3":       semconv.DBSystemNameSQLite.Value.AsString(),
+	"sqlserver":     semconv.DBSystemNameMicrosoftSQLServer.Value.AsString(),
+	"ysql":          dbSystemNameYugabyteDB,
+	"yugabyte":      dbSystemNameYugabyteDB,
+	"yugabytedb":    dbSystemNameYugabyteDB,
 }
 
 // DBSystemName maps a registered driver scheme to its db.system.name value.

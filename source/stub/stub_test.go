@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4/source"
-	st "github.com/golang-migrate/migrate/v4/source/testing"
+	"github.com/golang-migrate/migrate/v5/source"
+	st "github.com/golang-migrate/migrate/v5/source/testing"
 )
 
 func Test(t *testing.T) {

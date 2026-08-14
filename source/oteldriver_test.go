@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/source"
-	sStub "github.com/golang-migrate/migrate/v4/source/stub"
+	"github.com/golang-migrate/migrate/v5/source"
+	sStub "github.com/golang-migrate/migrate/v5/source/stub"
 )
 
 // setGlobalTP installs tp as the global TracerProvider and restores the

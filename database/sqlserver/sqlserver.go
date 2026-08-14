@@ -13,9 +13,9 @@ import (
 
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/XSAM/otelsql"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
-	"github.com/golang-migrate/migrate/v4/internal/dbotel"
+	"github.com/golang-migrate/migrate/v5"
+	"github.com/golang-migrate/migrate/v5/database"
+	"github.com/golang-migrate/migrate/v5/database/dbotel"
 	mssql "github.com/microsoft/go-mssqldb" // mssql support
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )

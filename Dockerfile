@@ -7,11 +7,12 @@ WORKDIR /go/src/github.com/golang-migrate/migrate
 
 ENV GO111MODULE=on
 
-COPY go.mod go.sum ./
-
-RUN go mod download
-
+# One module per driver: the dependency graph spans every go.mod in the
+# workspace, so there is no small set of files to pre-copy for a cached
+# download layer.
 COPY . ./
+
+RUN go work sync
 
 RUN make build-docker
 

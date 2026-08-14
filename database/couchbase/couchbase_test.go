@@ -15,9 +15,9 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 
-	dt "github.com/golang-migrate/migrate/v4/database/testing"
-	"github.com/golang-migrate/migrate/v4/dktesting"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/dktesting/v5"
+	dt "github.com/golang-migrate/migrate/v5/database/testing"
+	_ "github.com/golang-migrate/migrate/v5/source/file"
 )
 
 const (

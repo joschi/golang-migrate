@@ -17,10 +17,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/database"
-	dStub "github.com/golang-migrate/migrate/v4/database/stub"
-	"github.com/golang-migrate/migrate/v4/source"
-	sStub "github.com/golang-migrate/migrate/v4/source/stub"
+	"github.com/golang-migrate/migrate/v5/database"
+	dStub "github.com/golang-migrate/migrate/v5/database/stub"
+	"github.com/golang-migrate/migrate/v5/source"
+	sStub "github.com/golang-migrate/migrate/v5/source/stub"
 )
 
 // secretSQL stands in for a migration body containing data that must not be
@@ -228,9 +228,9 @@ func TestOtelProviderIsInjectable(t *testing.T) {
 		scopes[s.InstrumentationScope().Name] = true
 	}
 	for _, want := range []string{
-		"github.com/golang-migrate/migrate/v4",
-		"github.com/golang-migrate/migrate/v4/database",
-		"github.com/golang-migrate/migrate/v4/source",
+		"github.com/golang-migrate/migrate/v5",
+		"github.com/golang-migrate/migrate/v5/database",
+		"github.com/golang-migrate/migrate/v5/source",
 	} {
 		assert.True(t, scopes[want], "no spans from scope %q; got %v", want, scopes)
 	}

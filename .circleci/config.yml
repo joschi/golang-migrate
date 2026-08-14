@@ -16,8 +16,20 @@ jobs:
       - go/with-cache:
           golangci-lint: true
           steps:
-            - go/mod-download
-            - run: golangci-lint run
+            - run:
+                name: Download dependencies for every module in the workspace
+                command: go work sync
+            - run:
+                name: Lint every module in the workspace
+                # golangci-lint does not cross nested module boundaries, so run
+                # it once per module; each picks up the root .golangci.yml.
+                # Keep the workspace active: it is what resolves the intra-repo
+                # dependencies while the v5 tags do not exist yet.
+                command: |
+                  go list -m -f '{{.Dir}}' | while read -r dir; do
+                    echo "-- $dir"
+                    (cd "$dir" && golangci-lint run)
+                  done
 
   test:
     parameters:
@@ -35,7 +47,9 @@ jobs:
           version: << parameters.go-version >>
       - go/with-cache:
           steps:
-            - go/mod-download
+            - run:
+                name: Download dependencies for every module in the workspace
+                command: go work sync
             - run:
                 command: circleci run testsuite "ci tests"
                 no_output_timeout: 20m
@@ -45,8 +59,16 @@ jobs:
 workflows:
   lint-and-test:
     jobs:
-      - lint
+      # A release commit pins every intra-repo require to tags that do not exist
+      # until it is merged and tagged, so nothing in the workspace resolves and
+      # both jobs would fail. GitHub Actions skips these branches too; see
+      # RELEASING.md.
+      - lint:
+          filters: &skip-release-branches
+            branches:
+              ignore: /^release\/.*/
       - test:
+          filters: *skip-release-branches
           matrix:
             parameters:
               go-version: ["1.26.4"]

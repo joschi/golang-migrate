@@ -10,10 +10,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/golang-migrate/migrate/v4/internal/otelconv"
+	"github.com/golang-migrate/migrate/v5/internal/otelconv"
 )
 
-const tracerName = "github.com/golang-migrate/migrate/v4/database"
+const tracerName = "github.com/golang-migrate/migrate/v5/database"
 
 // Operation names reported as db.operation.name. They describe the migration
 // bookkeeping operation rather than a single statement, since one call may run

@@ -1,7 +1,6 @@
 .DS_Store
-cli/build
-cli/cli
-cli/migrate
+/build
+cmd/migrate/migrate
 .coverage
 .godoc.pid
 vendor/

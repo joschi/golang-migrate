@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	st "github.com/golang-migrate/migrate/v4/source/testing"
+	st "github.com/golang-migrate/migrate/v5/source/testing"
 	"github.com/stretchr/testify/assert"
 )
 
