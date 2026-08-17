@@ -4,5 +4,5 @@ go 1.26
 
 require (
 	github.com/neo4j/neo4j-go-driver/v6 v6.2.0
-	golang.org/x/mod v0.39.0
+	golang.org/x/mod v0.40.0
 )
