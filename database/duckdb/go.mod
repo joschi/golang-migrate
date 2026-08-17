@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/XSAM/otelsql v0.43.0
 	github.com/duckdb/duckdb-go/v2 v2.10505.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	go.opentelemetry.io/otel v1.45.0
 )
 

@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/google/go-github/v90 v90.0.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
 	golang.org/x/oauth2 v0.36.0
 )
