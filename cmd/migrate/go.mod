@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.70.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/sdk v1.45.0
