@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/source/aws_s3/v5
 go 1.26
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.6
+	github.com/aws/aws-sdk-go-v2 v1.43.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.37
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.1
 	github.com/stretchr/testify v1.12.0
