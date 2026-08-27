@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/source/gitlab/v5
 go 1.26
 
 require (
-	gitlab.com/gitlab-org/api/client-go/v2 v2.58.0
+	gitlab.com/gitlab-org/api/client-go/v2 v2.60.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
 )
 
