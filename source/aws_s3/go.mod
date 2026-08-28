@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.45.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.1
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.70.0
 )
 
@@ -39,5 +39,6 @@ require (
 	go.opentelemetry.io/otel v1.45.0 // indirect
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
