@@ -19,6 +19,8 @@ github.com/nakagami/chacha20 v0.1.0 h1:2fbf5KeVUw7oRpAe6/A7DqvBJLYYu0ka5WstFbnkE
 github.com/nakagami/chacha20 v0.1.0/go.mod h1:xpoujepNFA7MvYLvX5xKHzlOHimDrLI9Ll8zfOJ0l2E=
 github.com/nakagami/firebirdsql v0.9.19 h1:57YhaeTYp6ul6h2th+R5yZRSJqOL7/P8L7OO3U4ewTc=
 github.com/nakagami/firebirdsql v0.9.19/go.mod h1:l3bG682R481NkM9CMlXz7zGaO2VTWnX5oTRReb3SAA0=
+github.com/nakagami/firebirdsql v0.9.20 h1:I7kbSFOSzL0RI2z0XIfbamUkq6PZ1dN6eWlTbTseUSs=
+github.com/nakagami/firebirdsql v0.9.20/go.mod h1:HsxjwNJ2Xr4MIppGCJheXkvaOFcvsj3UIYaveiQb6rQ=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
