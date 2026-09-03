@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/source/google_cloud_storage/v5
 go 1.26
 
 require (
-	cloud.google.com/go/storage v1.66.0
+	cloud.google.com/go/storage v1.67.0
 	github.com/fsouza/fake-gcs-server v1.56.1
 	google.golang.org/api v0.293.0
 )
