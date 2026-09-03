@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/database/spanner/v5
 go 1.26
 
 require (
-	cloud.google.com/go/spanner v1.94.0
+	cloud.google.com/go/spanner v1.95.0
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.70.0
 	google.golang.org/api v0.293.0
