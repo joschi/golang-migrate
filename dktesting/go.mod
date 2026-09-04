@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/dktesting/v5
 go 1.26
 
 require (
-	github.com/moby/moby/api v1.55.0
+	github.com/moby/moby/api v1.56.0
 	github.com/testcontainers/testcontainers-go v0.44.0
 )
 
