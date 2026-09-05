@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/aws/aws-sdk-go-v2 v1.46.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.3
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.110.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.111.0
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.71.0
 )
@@ -19,10 +19,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.63.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.19 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.12.16 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sns v1.42.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.46.8 // indirect
