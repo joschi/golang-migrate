@@ -208,7 +208,7 @@ func testErrorParsing(t *testing.T) {
 
 		wantErr := `migration failed: Unknown object type 'TABLEE' used in a CREATE, DROP, or ALTER statement. in line 1:` +
 			` CREATE TABLE foo (foo text); CREATE TABLEE bar (bar text); (details: mssql: Unknown object type ` +
-			`'TABLEE' used in a CREATE, DROP, or ALTER statement.)`
+			`'TABLEE' used in a CREATE, DROP, or ALTER statement. (343))`
 		if err := d.Run(ctx, strings.NewReader("CREATE TABLE foo (foo text); CREATE TABLEE bar (bar text);")); err == nil {
 			t.Fatal("expected err but got nil")
 		} else if err.Error() != wantErr {
