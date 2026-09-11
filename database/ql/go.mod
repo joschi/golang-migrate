@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/XSAM/otelsql v0.44.0
 	go.opentelemetry.io/otel v1.46.0
-	modernc.org/ql v1.6.0
+	modernc.org/ql v1.7.0
 )
 
 require (
@@ -24,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	modernc.org/b v1.1.0 // indirect
-	modernc.org/db v1.3.1 // indirect
+	modernc.org/db v1.4.0 // indirect
 	modernc.org/file v1.1.4 // indirect
 	modernc.org/fileutil v1.4.0 // indirect
 	modernc.org/golex v1.1.0 // indirect
