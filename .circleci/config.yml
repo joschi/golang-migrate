@@ -51,7 +51,7 @@ jobs:
                 name: Download dependencies for every module in the workspace
                 command: go work sync
             - run:
-                command: circleci run testsuite "ci tests"
+                command: circleci testsuite run "ci tests"
                 no_output_timeout: 20m
             - store_test_results:
                 path: test-reports
