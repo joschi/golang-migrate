@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/google/go-github/v91 v91.0.0
+	github.com/google/go-github/v92 v92.0.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0
 )
 
