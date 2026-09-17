@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/XSAM/otelsql v0.44.0
-	github.com/nakagami/firebirdsql v0.9.20
+	github.com/nakagami/firebirdsql v0.9.21
 	go.opentelemetry.io/otel v1.46.0
 )
 
