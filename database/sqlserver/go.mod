@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/Azure/go-autorest/autorest/adal v0.9.24
 	github.com/XSAM/otelsql v0.44.0
-	github.com/microsoft/go-mssqldb v1.11.1
+	github.com/microsoft/go-mssqldb v1.11.2
 	go.opentelemetry.io/otel v1.46.0
 )
 
