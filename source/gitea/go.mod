@@ -1,9 +1,9 @@
 module github.com/golang-migrate/migrate/source/gitea/v5
 
-go 1.26
+go 1.26.0
 
 require (
-	gitea.dev/sdk v1.2.0
+	gitea.dev/sdk v1.3.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0
 )
 
@@ -21,6 +21,6 @@ require (
 	go.opentelemetry.io/otel v1.46.0 // indirect
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 )
