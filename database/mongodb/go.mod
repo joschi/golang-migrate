@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/database/mongodb/v5
 go 1.26
 
 require (
-	github.com/cenkalti/backoff/v7 v7.0.0
+	github.com/cenkalti/backoff/v7 v7.0.1
 	go.mongodb.org/mongo-driver/v2 v2.9.1
 )
 
