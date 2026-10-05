@@ -1,12 +1,12 @@
 module github.com/golang-migrate/migrate/database/snowflake/v5
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/XSAM/otelsql v0.44.0
 	github.com/lib/pq v1.12.3
 	github.com/snowflakedb/gosnowflake/v2 v2.3.0
-	go.opentelemetry.io/otel v1.46.0
+	go.opentelemetry.io/otel v1.47.0
 )
 
 require (
@@ -57,10 +57,11 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel/metric v1.46.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
+	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.46.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.46.0 // indirect
-	go.opentelemetry.io/otel/trace v1.46.0 // indirect
+	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/mod v0.39.0 // indirect
