@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/source/aws_s3/v5
 go 1.26
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.47.2
+	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.8
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.2
 	github.com/stretchr/testify v1.12.1
@@ -29,7 +29,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.38.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.3 // indirect
-	github.com/aws/smithy-go v1.28.4 // indirect
+	github.com/aws/smithy-go v1.28.5 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
