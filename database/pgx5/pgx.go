@@ -1,5 +1,3 @@
-//go:build go1.9
-
 package pgx
 
 import (
