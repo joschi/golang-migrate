@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/database/rqlite/v5
 go 1.26.0
 
 require (
-	github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9
+	github.com/rqlite/gorqlite v0.0.0-20261020015727-7224ce2bd419
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 )
