@@ -23,6 +23,8 @@ github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0t
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9 h1:TS0KUGThBdgr2QURBtaUdNdcRJuwZ1O7/FnhrTDRp0c=
 github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9/go.mod h1:xF/KoXmrRyahPfo5L7Szb5cAAUl53dMWBh9cMruGEZg=
+github.com/rqlite/gorqlite v0.0.0-20261020015727-7224ce2bd419 h1:4af/u/QA17H/QRu43lUyiJS2x8ARqvdvadkNaOWqEuQ=
+github.com/rqlite/gorqlite v0.0.0-20261020015727-7224ce2bd419/go.mod h1:xF/KoXmrRyahPfo5L7Szb5cAAUl53dMWBh9cMruGEZg=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/stretchr/testify v1.12.0 h1:K6Mr6jO9JICuend/5xzTM03ydSV3vdNRYAdPSukj8uI=
