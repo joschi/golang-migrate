@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/source/github/v5
 go 1.26.0
 
 require (
-	github.com/google/go-github/v91 v91.0.0
+	github.com/google/go-github/v93 v93.0.0
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	golang.org/x/oauth2 v0.37.0

@@ -15,6 +15,11 @@ func Test(t *testing.T) {
 			return
 		}
 
+		if user, pass, ok := r.BasicAuth(); !ok || user != "foo" || pass != "bar" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
 		if ref := r.URL.Query().Get("ref"); ref != "452b8003e7" {
 			w.WriteHeader(http.StatusNotFound)
 			return
