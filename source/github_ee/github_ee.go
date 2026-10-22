@@ -12,7 +12,7 @@ import (
 	gh "github.com/golang-migrate/migrate/source/github/v5"
 	"github.com/golang-migrate/migrate/v5/source"
 
-	"github.com/google/go-github/v91/github"
+	"github.com/google/go-github/v93/github"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -75,16 +75,27 @@ func (g *GithubEE) Open(ctx context.Context, url string) (source.Driver, error) 
 }
 
 func (g *GithubEE) createGithubClient(host, username, password string, verifyTLS bool) (*github.Client, error) {
+	apiHost := fmt.Sprintf("https://%s/api/v3", host)
+	uploadHost := fmt.Sprintf("https://uploads.%s", host)
+
+	apiURL, err := nurl.Parse(apiHost)
+	if err != nil {
+		return nil, err
+	}
+
+	uploadURL, err := nurl.Parse(uploadHost)
+	if err != nil {
+		return nil, err
+	}
+
 	tr := &github.BasicAuthTransport{
-		Username: username,
-		Password: password,
+		Username:       username,
+		Password:       password,
+		AllowedOrigins: []*nurl.URL{apiURL, uploadURL},
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: !verifyTLS},
 		},
 	}
-
-	apiHost := fmt.Sprintf("https://%s/api/v3", host)
-	uploadHost := fmt.Sprintf("https://uploads.%s", host)
 
 	return github.NewClient(
 		github.WithEnterpriseURLs(apiHost, uploadHost),
