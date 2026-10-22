@@ -26,6 +26,8 @@ github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.21 h1:WKBWnr7CcxtexN5
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.21/go.mod h1:wSsHgTuq6+1PF8bYXu69GvAtPwRqu58R54eiU3oJjPA=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.22 h1:oiEmPz/YMMeh/JvAE8xSxNCIsvWE6lpFe4ZPlyFykQI=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.22/go.mod h1:QWUDuRi9PFjBHIU2iH1Pkldbe7zqLfXJC4wWLbF8nuQ=
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.23 h1:/fGPpKrXTjzkhsDXExBgNT2cGwxiF9rLrQXh8RlXMhI=
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.23/go.mod h1:QWUDuRi9PFjBHIU2iH1Pkldbe7zqLfXJC4wWLbF8nuQ=
 github.com/aws/aws-sdk-go-v2/config v1.32.36 h1:mX6ietU7UlB4w/2IUaexJdsyUDvhTd+jYPjVePiyi6s=
 github.com/aws/aws-sdk-go-v2/config v1.32.36/go.mod h1:rMpV4xk7ZK59edraSaHP0jsWrztWTT5tbCwWY495hug=
 github.com/aws/aws-sdk-go-v2/config v1.32.37 h1:Ljl7LOJB6ym0liuEl0+TZ3d7f5I8MEZN1Cj9PINlj/g=
@@ -240,6 +242,8 @@ github.com/aws/aws-sdk-go-v2/service/s3 v1.114.2 h1:BOB0aJVVaZzjOz7czfgrEJNObTMv
 github.com/aws/aws-sdk-go-v2/service/s3 v1.114.2/go.mod h1:n0cd8OKteromGbGyZfQXziazjV0q+QHDHwlB3miEKw0=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.114.3 h1:NyeuyXkZL476uoAowNActm4XJO1QPKf7aassgXHpiqA=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.114.3/go.mod h1:GfoBeKMDJecgRUsGf/0RGdx0NJAh81ObTd922h8pQys=
+github.com/aws/aws-sdk-go-v2/service/s3 v1.114.4 h1:MrkWRB58Qw5TEkb51QVooVLjlM3IevO2iVXEz74B8pg=
+github.com/aws/aws-sdk-go-v2/service/s3 v1.114.4/go.mod h1:yfIxaKRHasvfy6tNEm3/LpqKsupMzQjMaWj9Y0jMVbo=
 github.com/aws/aws-sdk-go-v2/service/signin v1.5.5 h1:0VTFBfOgPJrUSpGMgzoi8qLcXF5dbmiBuxpo14eBWUw=
 github.com/aws/aws-sdk-go-v2/service/signin v1.5.5/go.mod h1:sNZYlBxoohYMBYl47BO/bFtAM6I8HSsPa1qwwPPRGoQ=
 github.com/aws/aws-sdk-go-v2/service/signin v1.5.6 h1:i68sFvXidKlkiSvI7d7Ilc1/UvW4CtBOaivH7jhG4fs=
