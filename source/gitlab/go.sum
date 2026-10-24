@@ -33,6 +33,8 @@ gitlab.com/gitlab-org/api/client-go/v3 v3.32.0 h1:hisNyZHah2TjxlP4C5rgsu+9QSvvTa
 gitlab.com/gitlab-org/api/client-go/v3 v3.32.0/go.mod h1:jBFhGkTHLKkgeHEdS/A8yA0tQ6UHq96QVsS5muu6flM=
 gitlab.com/gitlab-org/api/client-go/v3 v3.33.0 h1:pl7bVbnSlozSzn+qXtsw1ALtZ2C1mgplIaG4CC88BW0=
 gitlab.com/gitlab-org/api/client-go/v3 v3.33.0/go.mod h1:jBFhGkTHLKkgeHEdS/A8yA0tQ6UHq96QVsS5muu6flM=
+gitlab.com/gitlab-org/api/client-go/v3 v3.34.0 h1:XdzPYoFiT5S5mFyMHmVm+DZ4RmMAfFyk6MhXS8uz88A=
+gitlab.com/gitlab-org/api/client-go/v3 v3.34.0/go.mod h1:jBFhGkTHLKkgeHEdS/A8yA0tQ6UHq96QVsS5muu6flM=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0 h1:LxwW/9ctSCv+QkE/cLR7M91ZIkXNMqJtEMi1vCw9U8s=
