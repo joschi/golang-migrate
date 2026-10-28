@@ -3,7 +3,7 @@ module github.com/golang-migrate/migrate/source/gitea/v5
 go 1.26.0
 
 require (
-	gitea.dev/sdk v1.4.0
+	gitea.dev/sdk v1.5.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 )
 
