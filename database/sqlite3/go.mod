@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/XSAM/otelsql v0.44.0
-	github.com/mattn/go-sqlite3 v1.14.52
+	github.com/mattn/go-sqlite3 v1.14.53
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/otel v1.47.0
 )
