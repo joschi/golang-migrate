@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/XSAM/otelsql v0.44.0
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	go.opentelemetry.io/otel v1.47.0
 )
 
