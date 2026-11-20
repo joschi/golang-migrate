@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/cenkalti/backoff/v7 v7.0.3
-	go.mongodb.org/mongo-driver/v2 v2.10.0
+	go.mongodb.org/mongo-driver/v2 v2.10.1
 )
 
 require (
